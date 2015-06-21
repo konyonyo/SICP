@@ -112,7 +112,7 @@
   (lambda (x)
     (sqrt-iter 1.0 x x)))
 
-; 1.7
+; 1.8
 (define cubic-iter
   (lambda (guess x guess-prev)
     (if (good-enough? guess guess-prev)
@@ -136,3 +136,108 @@
 (define cubic
   (lambda (x)
     (cubic-iter 1.0 x x)))
+
+; 1.9
+(define +
+  (lambda (a b)
+    (if (= a 0)
+	b
+	(inc (+ (dec a) b)))))
+
+(+ 5 6)
+(inc (+ (dec 5) 6))
+(inc (inc (+ (dec 4) 6)))
+(inc (inc (inc (+ (dec 3) 6))))
+(inc (inc (inc (inc (+ (dec 2) 6)))))
+(inc (inc (inc (inc (inc (+ (dec 1) 6))))))
+(inc (inc (inc (inc (inc 6)))))
+(inc (inc (inc (inc 7))))
+(inc (inc (inc 8)))
+(inc (inc 9))
+(inc 10)
+11
+; => 線形再帰的プロセス
+
+(define +
+  (lambda (a b)
+    (if (= a 0)
+	b
+	(+ (dec a) (inc b)))))
+
+(+ 5 6)
+(+ 4 7)
+(+ 3 8)
+(+ 2 9)
+(+ 1 10)
+11
+; => 線形反復的プロセス
+
+; 1.10
+; Ackermann関数
+(define A
+  (lambda (x y)
+    (cond
+     [(= y 0) 0]
+     [(= x 0) (* 2 y)]
+     [(= y 1) 2]
+     [else (A (- x 1) (A x (- y 1)))])))
+
+(A 1 10)
+(A 0 (A 1 9))
+(* 2 (A 1 9)) ; 2が1個
+(* 2 (A 0 (A 1 8)))
+(* 2 (* 2 (A 1 8))) ; 2が2個
+(* 2 (* 2 (A 0 (A 1 7))))
+(* 2 (* 2 (* 2 (A 1 7)))) ; 2が3個
+(* 2 (* 2 (* 2 (A 0 (A 1 6)))))
+(* 2 (* 2 (* 2 (* 2 (A 1 6))))) ; 2が4個
+; ...
+(* 2 (* 2 (* 2 (* 2 (* 2 (* 2 (* 2 (* 2 (* 2 (A 1 1)))))))))) ; 2が9個
+(* 2 (* 2 (* 2 (* 2 (* 2 (* 2 (* 2 (* 2 (* 2 2)))))))))
+; => 2^10
+
+(A 2 4)
+(A 1 (A 2 3))
+(A 1 (A 1 (A 2 (- 3 1))))
+(A 1 (A 1 (A 2 2)))
+(A 1 (A 1 (A 1 (A 2 1))))
+(A 1 (A 1 (A 1 2)))
+(A 1 (A 1 (A 0 (A 1 1))))
+(A 1 (A 1 (A 0 2)))
+(A 1 (A 1 (* 2 2)))
+(A 1 (A 1 4))
+(A 1 16)
+; => 2^16
+
+(A 3 3)
+(A 2 (A 3 2))
+(A 2 (A 2 (A 3 1)))
+(A 2 (A 2 2))
+(A 2 (A 1 (A 2 1)))
+(A 2 (A 1 2))
+(A 2 4)
+; => 2^16
+
+(define f
+  (lambda (n)
+    (* 2 n)))
+
+(define g
+  (lambda (n)
+    (expt 2 n)))
+
+(A 2 n)
+(A 1 (A 2 (- n 1)))
+(expt 2 (A 2 (- n 1)))
+(expt 2 (expt 2 (A 2 (- n 2))))
+; (- n 2) = 0 ならば (expt 2 (expt 2 0)) = (expt 2 1)
+; (- n 2) = 1 ならば (expt 2 (expt 2 2))
+(expt 2 (expt 2 (A 1 (A 2 (- n 3)))))
+(expt 2 (expt 2 (expt 2 (A 2 (- n 3)))))
+(expt 2 (expt 2 (expt 2 (expt 2 (A 2 (- n 4))))))
+
+(define h
+  (lambda (n)
+    (if (= n 1)
+	2
+	(expt 2 (h (- n 1))))))
