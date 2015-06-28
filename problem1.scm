@@ -241,3 +241,36 @@
     (if (= n 1)
 	2
 	(expt 2 (h (- n 1))))))
+
+; 1.11
+(define (f n)
+  (if (< n 3)
+      n
+      (+ (f (- n 1)) (* 2 (f (- n 2))) (* 3 (f (- n 3))))))
+
+(define (f n)
+  (if (< n 3)
+      n
+      (f-iter 4 2 1 0 n)))
+
+(define (f-iter m0 m1 m2 m3 count)
+  (if (= count 3)
+      m0
+      (f-iter (+ m0 (* 2 m1) (* 3 m2))
+	      m0
+	      m1
+	      m2
+	      (- count 1))))
+
+; 1.12
+(define (p n r)
+  (if (or (= n 0) (= r 0) (= r n))
+      1
+      (+ (p (- n 1) (- r 1))
+	 (p (- n 1) r))))
+
+
+
+
+
+
