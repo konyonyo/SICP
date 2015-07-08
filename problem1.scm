@@ -279,5 +279,25 @@
    [(even? n) (expt-iter (* b b) (/ n 2) a)]
    [else (expt-iter b (- n 1) (* a b))]))
 
+; 1.17
+(define (double x)
+  (* x 2))
 
+(define (halve x)
+  (/ x 2))
 
+(define (fast-* a b)
+  (cond
+   [(= b 0) 0]
+   [(even? b) (double (fast-* a (halve b)))]
+   [else (+ a (fast-* a (- b 1)))]))
+
+; 1.18
+(define (fast-* a b)
+  (*-iter a b 0))
+
+(define (*-iter a b n)
+  (cond
+   [(= b 0) n]
+   [(even? b) (*-iter (double a) (halve b) n)]
+   [else (*-iter a (- b 1) (+ n a))]))
