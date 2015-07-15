@@ -320,6 +320,128 @@
 		   q
 		   (- n 1))]))
 
+; 1.21
+(define (smallest-divisor n)
+  (find-divisor n 2))
+
+(define (find-divisor n test-divisor)
+  (cond [(> (square test-divisor) n) n]
+	[(divides? test-divisor n) test-divisor]
+	[else (find-divisor n (+ test-divisor 1))]))
+
+(define (divides? a b)
+  (= (remainder b a) 0))
+
+; (smallest-divisor 199) => 199
+; (smallest-divisor 1999) => 1999
+; (smallest-divisor 19999) => 7
+
+; 1.22
+(use srfi-19)
+
+(define (search-for-primes idx max)
+  (cond [(> idx max) (newline)
+	             (display "end")]
+	[else (cond [(even? idx) (search-for-primes (+ idx 1) max)]
+		    [else (timed-prime-test idx)
+			  (search-for-primes (+ idx 2) max)])]))
+
+(define (timed-prime-test n)
+  (newline)
+  (display n)
+  (start-prime-test n (current-time)))
+
+(define (start-prime-test n start-time)
+  (if (prime? n)
+      (report-prime (time-difference (current-time) start-time))))
+
+(define (prime? n)
+  (= (smallest-divisor n) n))
+
+(define (report-prime elapsed-time)
+  (display "***")
+  (display elapsed-time))
+
+(define (smallest-divisor n)
+  (find-divisor n 2))
+
+(define (find-divisor n test-divisor)
+  (cond [(> (square test-divisor) n) n]
+	[(divides? test-divisor n) test-divisor]
+	[else (find-divisor n (+ test-divisor 1))]))
+
+(define (divides? a b)
+  (= (remainder b a) 0))
+
+; 1.23
+(define (next x)
+  (if (= x 2)
+      3
+      (+ x 2)))
+
+(define (find-divisor n test-divisor)
+  (cond [(> (square test-divisor) n) n]
+	[(divides? test-divisor n) test-divisor]
+	[else (find-divisor n (next test-divisor))]))
+
+(define (smallest-divisor n)
+  (find-divisor n 2))
+
+(define (divides? a b)
+  (= (remainder b a) 0))
+
+; 1.24
+; (prime? n) -> (fast-prime? n 10)
+
+; 1.25
+; g‚¦‚éB
+
+; 1.26
+; *‚Ìˆø”‚ª2‰ñ•]‰¿‚³‚ê‚é‚©‚çB
+
+; 1.27
+(define (prime? p)
+  (if (= p 1)
+      #f
+      (prime-iter p p)))
+
+(define (prime-iter p n)
+  (cond [(= n 1) #t]
+	[else (and (= (expmod (- n 1) p p) (- n 1))
+		   (prime-iter p (- n 1)))]))
+
+(define (expmod base exp m)
+  (cond [(= exp 0) 1]
+	[(even? exp) (remainder (square (expmod base (/ exp 2) m)) m)]
+	[else (remainder (* base (expmod base (- exp 1) m)) m)]))
+
+; 1.28
+(use srfi-27)
+
+(define (expmod base exp m)
+  (cond [(= exp 0) 1]
+	[(even? exp) (miller-rabin (expmod base (/ exp 2) m) m)]
+	[else (remainder (* base (expmod base (- exp 1) m)) m)]))
+
+(define (miller-rabin a m)
+  (if (and (not (= a 1))
+	   (not (= a (- m 1)))
+	   (= (remainder (square a) m) 1))
+      0
+      (remainder (square a) m)))
+
+(define (miller-rabin-test n)
+  (let ((try-it (lambda (a)
+                    (= (expmod a (- n 1) n) 1))))
+    (try-it (random-integer n))))
+
+(define (miller-rabin-prime? n times)
+  (cond [(= times 0) #t]
+	[(miller-rabin-test n) (miller-rabin-prime? n (- times 1))]
+	[else #f]))
+
+
+
 
 
 
