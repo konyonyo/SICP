@@ -440,8 +440,140 @@
 	[(miller-rabin-test n) (miller-rabin-prime? n (- times 1))]
 	[else #f]))
 
+; 1.29
+(define (sum term a next b)
+  (if (> a b)
+      0
+      (+ (term a)
+	 (sum term (next a) next b))))
 
+(define (integral f a b n)
+  (let* ((h (/ (- b a) n))
+	(inc (lambda (x) (+ x 1)))
+	(term (lambda (k)
+		(cond [(or (= k 0) (= k n)) (f (+ a (* k h)))]
+		      [(odd? k) (* 4 (f (+ a (* k h))))]
+		      [else (* 2 (f (+ a (* k h))))]))))
+    (* (sum term 0 inc n) (/ h 3.0))))
 
+; 1.30
+(define (sum term a next b)
+  (letrec ((iter (lambda (a result)
+		   (if (> a b)
+		       result
+		       (iter (next a) (+ (term a) result))))))
+    (iter a 0)))
 
+; 1.31 a
+(define (product term a next b)
+  (if (> a b)
+      1
+      (* (term a) (product term (next a) next b))))
 
+(define (factorial n)
+  (let ((term (lambda (x) x))
+	(inc (lambda (x) (+ x 1))))
+    (if (= n 0)
+	1
+	(product term 1 inc n))))
 
+(define (pi n)
+  (let ((term (lambda (x) (* (/ (* 2 x) (- (* 2 x) 1))
+			     (/ (* 2 x) (+ (* 2 x) 1)))))
+	(inc (lambda (x) (+ x 1))))
+    (* 2.0 (product term 1 inc n))))
+
+; 1.31 b
+(define (product term a next b)
+  (letrec ((iter (lambda (a result)
+		   (if (> a b)
+		       result
+		       (iter (next a) (* (term a) result))))))
+    (iter a 1)))
+
+; 1.32 a
+(define (accumulate combiner null-value term a next b)
+  (if (> a b)
+      null-value
+      (combiner (term a)
+		(accumulate combiner null-value term (next a) next b))))
+
+(define (sum term a next b)
+  (accumulate (lambda (x y) (+ x y))
+	      0 term a next b))
+
+(define (product term a next b)
+  (accumulate (lambda (x y) (* x y))
+	      1 term a next b))
+
+; 1.32 b
+(define (accumulate combiner null-value term a next b)
+  (letrec ((iter (lambda (a result)
+		   (if (> a b)
+		       result
+		       (iter (next a) (combiner (term a) result))))))
+    (iter a null-value)))
+
+; 1.33
+(define (filtered-accumulate combiner null-value term a next b filter)
+  (letrec ((iter (lambda (a result)
+		   (cond [(> a b) result]
+			 [(filter a) (iter (next a)
+					   (combiner (term a) result))]
+			 [else (iter (next a) result)]))))
+    (iter a null-value)))
+
+; 1.33 a
+(define (sum-square-prime a b)
+  (filtered-accumulate (lambda (x y) (+ x y))
+		       0
+		       square
+		       a
+		       (lambda (x) (+ x 1))
+		       b
+		       prime?))
+
+(define (filtered-accumulate combiner null-value term a next b filter)
+  (letrec ((iter (lambda (a result)
+		   (cond [(> a b) result]
+			 [(filter a) (iter (next a)
+					   (combiner (term a) result))]
+			 [else (iter (next a) result)]))))
+    (iter a null-value)))
+
+(define (prime? n)
+  (= (smallest-divisor n) n))
+
+(define (smallest-divisor n)
+  (find-divisor n 2))
+
+(define (find-divisor n test-divisor)
+  (cond [(> (square test-divisor) n) n]
+	[(divides? test-divisor n) test-divisor]
+	[else (find-divisor n (+ test-divisor 1))]))
+
+(define (divides? a b)
+  (= (remainder b a) 0))
+
+; 1.33 b
+(define (product-coprime n)
+  (filtered-accumulate (lambda (x y) (* x y))
+		       1
+		       (lambda (x) x)
+		       1
+		       (lambda (x) (+ x 1))
+		       (- n 1)
+		       (lambda (x) (= 1 (gcd x n)))))
+
+(define (filtered-accumulate combiner null-value term a next b filter)
+  (letrec ((iter (lambda (a result)
+		   (cond [(> a b) result]
+			 [(filter a) (iter (next a)
+					   (combiner (term a) result))]
+			 [else (iter (next a) result)]))))
+    (iter a null-value)))
+
+(define (gcd a b)
+  (if (= b 0)
+      a
+      (gcd b (remainder a b))))
