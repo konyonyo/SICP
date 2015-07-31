@@ -577,3 +577,205 @@
   (if (= b 0)
       a
       (gcd b (remainder a b))))
+
+; 1.34
+; (f f) => (f 2) => (2 2) => error
+
+; 1.35
+; φ^2-φ-1=0
+; 両辺φで割って
+; φ-1-1/φ=0
+; 1+1/φ=φ
+; φはf(x) (f(x)=1+1/x)の不動点
+(define tolerance 0.00001)
+
+(define (fixed-point f first-guess)
+  (letrec* ((close-enough? (lambda (v1 v2)
+			     (< (abs (- v1 v2)) tolerance)))
+	    (try (lambda (guess)
+		   (let ((next (f guess)))
+		     (if (close-enough? guess next)
+			 next
+			 (try next))))))
+	   (try first-guess)))
+
+(define phi (fixed-point (lambda (x) (+ 1 (/ 1 x))) 1.0))
+
+; 1.36
+(define tolerance 0.00001)
+
+(define (fixed-point f first-guess)
+  (letrec* ((close-enough? (lambda (v1 v2)
+			     (< (abs (- v1 v2)) tolerance)))
+	    (try (lambda (guess)
+		   (let ((next (f guess)))
+		     (begin
+		       (display next)
+		       (newline)
+		       (if (close-enough? guess next)
+		           next
+			   (try next)))))))
+	   (try first-guess)))
+
+(define (average a b)
+  (/ (+ a b) 2))
+
+; 平均緩和法を使わないとき
+(define answer1 (fixed-point (lambda (x) (/ (log 1000) (log x))) 5.0))
+
+; 平均緩和法を使ったとき
+(define answer2 (fixed-point (lambda (x) (average x (/ (log 1000) (log x))))
+			     5.0))
+
+; 1.37a
+(define (cont-frac n d k)
+  (letrec ((sub (lambda (i)
+		  (if (= i k)
+		      (/ (n k) (d k))
+		      (/ (n i) (+ (d i) (sub (+ i 1))))))))
+    (sub 1)))
+
+(define (phi-k k)
+    (cont-frac (lambda (i) 1.0) (lambda (i) 1.0) k))
+
+(define phi-calc
+  (letrec* ((close-enough? (lambda (v1 v2)
+			     (< (abs (- v1 v2)) 0.00001)))
+	    (sub (lambda (k)
+		   (if (close-enough? (phi-k k) (phi-k (+ k 1)))
+		       (+ k 1)
+		       (sub (+ k 1))))))
+	   (sub 1)))
+
+; 1.37b
+(define (cont-frac n d k)
+  (letrec ((iter (lambda (i result)
+		   (if (= i 1)
+		       result
+		       (iter (- i 1) (/ (n (- i 1))
+					(+ (d (- i 1)) result)))))))
+    (iter k (/ (n k) (d k)))))
+
+; 1.38
+(define (cont-frac n d k)
+  (letrec ((iter (lambda (i result)
+		   (if (= i 1)
+		       result
+		       (iter (- i 1) (/ (n (- i 1))
+					(+ (d (- i 1)) result)))))))
+    (iter k (/ (n k) (d k)))))
+
+(define napier
+  (+ 2 (cont-frac (lambda (i) 1.0)
+		  (lambda (i)
+		    (if (= (remainder i 3) 2)
+			(expt 2.0 (+ 1 (/ (- i 2) 3)))
+			1.0))
+		  100)))
+
+; 1.39
+(define (cont-frac n d k)
+  (letrec ((iter (lambda (i result)
+		   (if (= i 1)
+		       result
+		       (iter (- i 1) (/ (n (- i 1))
+					(+ (d (- i 1)) result)))))))
+    (iter k (/ (n k) (d k)))))
+
+(define (tan-cf x k)
+  (cont-frac (lambda (i)
+	       (if (= i 1)
+		   x
+		   (* -1 (expt x i))))
+	     (lambda (i) (- (* 2 i) 1))
+	     k))
+
+; 1.40
+(define (cubic a b c)
+  (lambda (x)
+    (+ (* x x x)
+       (* a x x)
+       (* b x)
+       c)))
+
+; 1.41
+; => 21
+
+; 1.42
+(define (compose f g)
+  (lambda (x)
+    (f (g x))))
+
+; 1.43
+(define (repeated f n)
+  (if (= n 1)
+      f
+      (compose f (repeated f (- n 1)))))
+
+; 1.44
+(define (smooth f)
+  (lambda (x)
+    (/ (+ (f (- x dx))
+	  (f x)
+	  (f (+ x dx)))
+       3)))
+
+(define (smooth-n f n)
+  ((repeated smooth n) f))
+
+; 1.45
+(define (compose f g)
+  (lambda (x)
+    (f (g x))))
+
+(define (repeated f n)
+  (if (= n 1)
+      f
+      (compose f (repeated f (- n 1)))))
+
+(define (average a b)
+  (/ (+ a b) 2))
+
+(define (average-damp f)
+  (lambda (x) (average x (f x))))
+
+(define tolerance 0.00001)
+
+(define (fixed-point f first-guess)
+  (letrec* ((close-enough? (lambda (v1 v2)
+			     (< (abs (- v1 v2)) tolerance)))
+	    (try (lambda (guess)
+		   (let ((next (f guess)))
+		     (if (close-enough? guess next)
+			 next
+			 (try next))))))
+	   (try first-guess)))
+
+(define (n-root a n repeat)
+  (fixed-point ((repeated average-damp repeat)
+		(lambda (x) (/ a (expt x (- n 1)))))
+	       1.0))
+
+; 1.46
+(define (iterative-improve enough? improve)
+  (lambda (guess)
+    (let ((next (improve guess)))
+      (if (enough? guess next)
+	  next
+	  ((iterative-improve enough? improve) next)))))
+
+(define (average a b)
+  (/ (+ a b) 2))
+
+(define (sqrt x)
+  ((iterative-improve (lambda (v1 v2)
+			(< (abs (- (square v2) x)) 0.001))
+		      (lambda (guess)
+			(average guess (/ x guess))))
+   1.0))
+
+(define (fixed-point f first-guess)
+  ((iterative-improve (lambda (v1 v2)
+			(< (abs (- v1 v2)) tolerance))
+		      f)
+   first-guess))
