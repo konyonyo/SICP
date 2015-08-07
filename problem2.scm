@@ -194,7 +194,7 @@
 ;;                           = [x*y-(x*dy+y*dx), x*y+(x*dy+y*dx)]
 ;; 二つの区間の積の相対許容誤差 p = (x*dy+y*dx)/x*y
 
-;; 2.14
+;; 2.14-2.16
 (define (make-interval a b)
   (cons a b))
 
@@ -236,11 +236,22 @@
 	  [(and (positive? x1) (positive? x2) (positive? y1) (positive? y2))
 	   (make-interval (* x1 y1) (* x2 y2))])))
 
+;;(define (div-interval x y)
+;;  (if (and (negative? (lower-bound y)) (positive? (upper-bound y)))
+;;      (error "lower-bound is negative and upper-bound is positive")
+;;      (mul-interval x (make-interval (/ 1 (upper-bound y))
+;;				     (/ 1 (lower-bound y))))))
+
+;; R/Rが1にならないことが、代数的に等価でも値が異なる理由。
+;; R = [r1, r2]のとき、1/R = [1/r2, 1/r1], R*1/R = [r1/r2, r2/r1]
+
 (define (div-interval x y)
-  (if (and (negative? (lower-bound y)) (positive? (upper-bound y)))
-      (error "lower-bound is negative and upper-bound is positive")
-      (mul-interval x (make-interval (/ 1 (upper-bound y))
-				     (/ 1 (lower-bound y))))))
+  (let ((r1 (/ (lower-bound x) (lower-bound y)))
+	(r2 (/ (lower-bound x) (upper-bound y)))
+	(r3 (/ (upper-bound x) (lower-bound y)))
+	(r4 (/ (upper-bound x) (upper-bound y))))
+    (make-interval (min r1 r2 r3 r4) (max r1 r2 r3 r4))))
+;; -> 割算をこんな風に変えてみたが、やっぱり一致しない。問題2.16はわからない。
 
 (define (par1 r1 r2)
   (div-interval (mul-interval r1 r2) (add-interval r1 r2)))
