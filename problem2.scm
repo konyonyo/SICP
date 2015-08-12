@@ -261,3 +261,60 @@
     (div-interval one
 		  (add-interval (div-interval one r1)
 				(div-interval one r2)))))
+
+;; 2.29
+(define (make-mobile left right)
+  (list left right))
+
+(define (make-branch length structure)
+  (list length structure))
+
+;; a
+(define left-branch car)
+(define right-branch cadr)
+(define branch-length car)
+(define branch-structure cadr)
+
+;; b
+(define (total-weight mobile)
+  (let ((left-structure (branch-structure (left-branch mobile)))
+	(right-structure (branch-structure (right-branch mobile))))
+    (cond [(and (not (pair? left-structure)) (not (pair? right-structure)))
+	   (+ left-structure right-structure)]
+	  [(and (not (pair? left-structure)) (pair? right-structure))
+	   (+ left-structure (total-weight right-structure))]
+	  [(and (pair? left-structure) (not (pair? right-structure)))
+	   (+ (total-weight left-structure) right-structure)]
+	  [else
+	   (+ (total-weight left-structure) (total-weight right-structure))]
+	  )))
+
+;; c
+(define (balanced mobile)
+  (let* ((left-length (branch-length (left-branch mobile)))
+	 (right-length (branch-length (right-branch mobile)))
+	 (left-structure (branch-structure (left-branch mobile)))
+	 (right-structure (branch-structure (right-branch mobile)))
+	 (left-weight (if (not (pair? left-structure))
+			  left-structure
+			  (total-weight left-structure)))
+	 (right-weight (if (not (pair? right-structure))
+			   right-structure
+			   (total-weight right-structure)))
+	 (left-torgue (* left-length left-weight))
+	 (right-torgue (* right-length right-weight)))
+    (cond [(and (not (pair? left-structure)) (not (pair? right-structure)))
+	   (= left-torque right-torque)]
+	  [(and (not (pair? left-structure)) (pair? right-structure))
+	   (and (= left-torque right-torque) (balanced right-structure))]
+	  [(and (pair? left-structure) (not (pair? right-structure)))
+	   (and (= left-torque right-torque) (balanced left-structure))]
+	  [else
+	   (and (= left-torque right-torque)
+		(balanced left-structure) (balanced right-structure))])))
+
+;; d
+(define left-branch car)
+(define right-branch cdr)
+(define branch-length car)
+(define branch-structure cdr)
