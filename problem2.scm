@@ -301,8 +301,8 @@
 	 (right-weight (if (not (pair? right-structure))
 			   right-structure
 			   (total-weight right-structure)))
-	 (left-torgue (* left-length left-weight))
-	 (right-torgue (* right-length right-weight)))
+	 (left-torque (* left-length left-weight))
+	 (right-torque (* right-length right-weight)))
     (cond [(and (not (pair? left-structure)) (not (pair? right-structure)))
 	   (= left-torque right-torque)]
 	  [(and (not (pair? left-structure)) (pair? right-structure))
