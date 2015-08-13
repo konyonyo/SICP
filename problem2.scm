@@ -262,6 +262,82 @@
 		  (add-interval (div-interval one r1)
 				(div-interval one r2)))))
 
+;; 2.17
+(define (last-pair lis)
+  (if (null? (cdr lis))
+      lis
+      (last-pair (cdr lis))))
+
+;; 2.18
+(define (reverse lis)
+  (letrec ((iter (lambda (old new)
+		   (if (null? old)
+		       new
+		       (iter (cdr old) (cons (car old) new))))))
+    (iter lis '())))
+
+;; 2.19
+(define first-denomination car)
+(define except-first-denomination cdr)
+(define no-more? null?)
+;; 答えは順序に依存しない。理由をうまく説明することができない。
+;; このようなことを自動的に証明するプログラムが書けないだろうか?
+
+;; 2.20
+(define (same-parity a . b)
+  (if (even? a)
+      (filter even? (cons a b))
+      (filter odd? (cons a b))))
+
+;; 2.21
+(define (square-list items)
+  (if (null? items)
+      '()
+      (cons (square (car items)) (square-list (cdr items)))))
+
+(define (square-list items)
+  (map square items))
+
+;; 2.22
+;; 1. リストのcarを2乗したものをnilにconsし、その結果のリストにリストのcarを2乗したもの
+;;    をconsしていくように計算しているため逆になる。
+
+;; 2. リストをアトム(数値)にconsしているため、正しく動かない。
+
+;; 2.23
+(define (for-each f lis)
+  (if (null? lis)
+      #t
+      (begin
+	(f (car lis))
+	(for-each f (cdr lis)))))
+
+;; 2.25
+(car (cdr (car (cdr (cdr '(1 3 (5 7) 9))))))
+(car (car '((7))))
+(cadr (cadr (cadr (cadr (cadr (cadr '(1 (2 (3 (4 (5 (6 7))))))))))))
+
+;; 2.26
+;; (1 2 3 4 5 6)
+;; ((1 2 3) 4 5 6)
+;; ((1 2 3) (4 5 6))
+
+;; 2.27
+(define (deep-reverse lis)
+  (letrec ((iter (lambda (old new)
+		   (cond [(null? old) new]
+			 [(pair? (car old))
+			  (iter (cdr old)
+				(cons (iter (car old) '()) new))]
+			 [else (iter (cdr old) (cons (car old) new))]))))
+    (iter lis '())))
+
+;; 2.28
+(define (fringe lis)
+  (cond [(null? lis) '()]
+	[(pair? (car lis)) (append (fringe (car lis)) (fringe (cdr lis)))]
+	[else (cons (car lis) (fringe (cdr lis)))]))
+
 ;; 2.29
 (define (make-mobile left right)
   (list left right))
