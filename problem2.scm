@@ -394,3 +394,219 @@
 (define right-branch cdr)
 (define branch-length car)
 (define branch-structure cdr)
+
+;; 2.38
+(define (fold-right op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence) (fold-right op initial (cdr sequence)))))
+
+(define (fold-left op initial sequence)
+  (letrec ((iter (lambda (result rest)
+		   (if (null? rest)
+		       result
+		       (iter (op result (car rest)) (cdr rest))))))
+    (iter initial sequence)))
+
+;; (fold-right / 1 (list 1 2 3)) => 3/2
+;; (fold-left / 1 (list 1 2 3)) => 1/6
+;; (fold-right list '() (list 1 2 3)) => (1 (2 (3 ())))
+;; (fold-left list '() (list 1 2 3)) => (((() 1) 2) 3)
+
+;; opが満たすべき性質は、(op x y) = (op y x) 可換性
+
+;; 2.39
+(define (reverse sequence)
+  (fold-right (lambda (x y) (append y (list x))) '() sequence))
+
+(define (reverse sequence)
+  (fold-left (lambda (x y) (cons y x)) '() sequence))
+
+;; 和が素数になるペアのリスト
+(define (prime-sum-pairs n)
+  (map make-pair-sum
+       (filter prime-sum?
+	       (flatmap
+		(lambda (i)
+		  (map (lambda (j) (list i j))
+		       (enumerate-interval 1 (- i 1))))
+		(enumerate-interval 1 n)))))
+
+(define (make-pair-sum pair)
+  (list (car pair) (cadr pair) (+ (car pair) (cadr pair))))
+
+(define (prime-sum? pair)
+  (prime? (+ (car pair) (cadr pair))))
+
+(define (prime? x)
+  (letrec* ((smallest-divisor (lambda (n)
+				(find-divisor n 2)))
+	    (find-divisor     (lambda (n test-divisor)
+				(cond
+				 [(> (square test-divisor) n) n]
+				 [(devides? n test-divisor) test-divisor]
+				 [else (find-divisor n (+ test-divisor 1))])))
+	    (devides?         (lambda (a b)
+				(= (remainder a b) 0))))
+	   (= x (smallest-divisor x))))
+
+(define (flatmap proc seq)
+  (fold-right append '() (map proc seq)))
+
+(define (fold-right op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence) (fold-right op initial (cdr sequence)))))
+
+(define (enumerate-interval i j)
+  (letrec ((iter (lambda (x result)
+		   (if (< x i)
+		       result
+		       (iter (- x 1) (cons x result))))))
+    (iter j '())))
+
+;; 集合の順列
+(define (permutations s)
+  (if (null? s)
+      (list '())
+      (flatmap (lambda (x)
+		 (map (lambda (p) (cons x p))
+		      (permutations (remove x s))))
+	       s)))
+
+(define (remove item sequence)
+  (filter (lambda (x) (not (= x item))) sequence))
+
+(define (flatmap proc seq)
+  (fold-right append '() (map proc seq)))
+
+(define (fold-right op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence) (fold-right op initial (cdr sequence)))))
+
+;; 2.40
+(define (unique-pairs n)
+  (flatmap (lambda (i)
+	     (map (lambda (j) (list i j))
+		  (enumerate-interval 1 (- i 1))))
+	   (enumerate-interval 1 n)))
+
+(define (enumerate-interval i j)
+  (letrec ((iter (lambda (x result)
+		   (if (< x i)
+		       result
+		       (iter (- x 1) (cons x result))))))
+    (iter j '())))
+
+(define (flatmap proc seq)
+  (fold-right append '() (map proc seq)))
+
+(define (fold-right op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence) (fold-right op initial (cdr sequence)))))
+
+(define (prime-sum-pairs n)
+  (map make-pair-sum
+       (filter prime-sum?
+	       (unique-pairs n))))
+
+(define (make-pair-sum pair)
+  (list (car pair) (cadr pair) (+ (car pair) (cadr pair))))
+
+(define (prime-sum? pair)
+  (prime? (+ (car pair) (cadr pair))))
+
+(define (prime? x)
+  (letrec* ((smallest-divisor (lambda (n)
+				(find-divisor n 2)))
+	    (find-divisor     (lambda (n test-divisor)
+				(cond
+				 [(> (square test-divisor) n) n]
+				 [(devides? n test-divisor) test-divisor]
+				 [else (find-divisor n (+ test-divisor 1))])))
+	    (devides?         (lambda (a b)
+				(= (remainder a b) 0))))
+	   (= x (smallest-divisor x))))
+
+;; 2.41
+(define (s-sum-tuple n s)
+  (filter (lambda (tuple)
+	    (= s (+ (car tuple) (cadr tuple) (caddr tuple))))
+          (flatmap (lambda (pair)
+	             (map (lambda (i)
+		            (list i (car pair) (cadr pair)))
+		          (enumerate-interval 1 (- (car pair) 1))))
+                   (flatmap (lambda (k)
+	                      (map (lambda (j)
+		                     (list j k))
+		                   (enumerate-interval 1 (- k 1))))
+	                    (enumerate-interval 1 n)))))
+
+(define (enumerate-interval i j)
+  (letrec ((iter (lambda (x result)
+		   (if (< x i)
+		       result
+		       (iter (- x 1) (cons x result))))))
+    (iter j '())))
+
+(define (flatmap proc seq)
+  (fold-right append '() (map proc seq)))
+
+;; 2.42
+(define (queens board-size)
+  (letrec ((queen-cols
+	    (lambda (k)
+	      (if (= k 0)
+		  (list empty-board)
+		  (filter
+		   (lambda (positions) (safe? k positions))
+		   (flatmap
+		    (lambda (rest-of-queens)
+		      (map (lambda (new-row)
+			     (adjoin-position new-row k rest-of-queens))
+			   (enumerate-interval 1 board-size)))
+		    (queen-cols (- k 1))))))))
+    (queen-cols board-size)))
+
+(define (adjoin-position new-row k rest-of-queens)
+  (cons (list new-row k) rest-of-queens))
+
+(define empty-board '())
+
+(define (safe? k positions)
+  (letrec ((not-found-row (lambda (row positions)
+			    (cond [(null? positions) #t]
+				  [(= row (caar positions)) #f]
+				  [else (not-found-row row (cdr positions))])))
+	   (not-found-diag (lambda (row col positions)
+			     (cond [(null? positions) #t]
+				   [(or (= row (+ (caar positions)
+						  (- col (cadar positions))))
+					(= row (- (caar positions)
+						  (- col (cadar positions)))))
+				    #f]
+				   [else (not-found-diag row col (cdr positions))]))))
+	
+    (if (= k 1)
+          #t
+          (let ((row (caar positions))
+		(col k))
+	    (and (not-found-row row (cdr positions))
+                 (not-found-diag row col (cdr positions)))))))
+  
+(define (enumerate-interval i j)
+  (letrec ((iter (lambda (x result)
+		   (if (< x i)
+		       result
+		       (iter (- x 1) (cons x result))))))
+    (iter j '())))
+
+(define (flatmap proc seq)
+  (fold-right append '() (map proc seq)))
+
+(define (fold-right op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence) (fold-right op initial (cdr sequence)))))
