@@ -395,6 +395,78 @@
 (define branch-length car)
 (define branch-structure cdr)
 
+;; 2.30
+(define (square-tree tree)
+  (cond [(null? tree) '()]
+	[(not (pair? tree)) (square tree)]
+	[else (cons (square-tree (car tree)) (square-tree (cdr tree)))]))
+
+(define (square-tree tree)
+  (map (lambda (sub-tree)
+	 (if (pair? sub-tree)
+	     (square-tree sub-tree)
+	     (square sub-tree)))
+       tree))
+
+;; 2.31
+(define (tree-map f tree)
+  (cond [(null? tree) '()]
+	[(not (pair? tree)) (f tree)]
+	[else (cons (tree-map f (car tree)) (tree-map f (cdr tree)))]))
+
+;; 2.32
+(define (subsets s)
+  (if (null? s)
+      (list '())
+      (let ((rest (subsets (cdr s))))
+	(append rest (map (lambda (x) (cons (car s) x)) rest)))))
+
+;; 2.33
+(define (map p sequence)
+  (accumulate (lambda (x y) (cons (p x) y)) '() sequence))
+
+(define (append seq1 seq2)
+  (accumulate cons seq2 seq1))
+
+(define (length sequence)
+  (accumulate (lambda (x y) (+ y 1)) 0 sequence))
+
+;; 2.34
+(define (horner-eval x coefficient-sequence)
+  (accumulate (lambda (this-coeff higher-terms)
+		(+ this-coeff (* higher-terms x)))
+	      0
+	      coefficient-sequence))
+;; Hornerの方法は多項式評価の最適アルゴリズムである。
+
+;; 2.35
+(define (count-leaves t)
+  (accumulate + 0 (map (lambda (x)
+			 (if (not (pair? x))
+			     1
+			     (count-leaves x)))
+		       t)))
+
+;; 2.36
+(define (accumulate-n op init seqs)
+  (if (null? (car seqs))
+      (cons (accumulate op init (map (lambda (x) (car x)) seqs))
+	    (accumulate-n op init (map (lambda (x) (cdr x)) seqs)))))
+
+;; 2.37
+(define (dot-product v w)
+  (accumulate + 0 (map * v w)))
+
+(define (matrix-*-vector m v)
+  (map (lambda (x) (dot-product x v)) m))
+
+(define (transpose mat)
+  (accumulate-n cons '() mat))
+
+(define (matrix-*-matrix m n)
+  (let ((cols (transpose n)))
+    (map (lambda (x) (matrix-*-vector cols x)) m)))
+
 ;; 2.38
 (define (fold-right op initial sequence)
   (if (null? sequence)
@@ -568,6 +640,78 @@
 			     (adjoin-position new-row k rest-of-queens))
 			   (enumerate-interval 1 board-size)))
 		    (queen-cols (- k 1))))))))
+    (queen-cols board-size)))
+
+(define (adjoin-position new-row k rest-of-queens)
+  (cons (list new-row k) rest-of-queens))
+
+(define empty-board '())
+
+(define (safe? k positions)
+  (letrec ((not-found-row (lambda (row positions)
+			    (cond [(null? positions) #t]
+				  [(= row (caar positions)) #f]
+				  [else (not-found-row row (cdr positions))])))
+	   (not-found-diag (lambda (row col positions)
+			     (cond [(null? positions) #t]
+				   [(or (= row (+ (caar positions)
+						  (- col (cadar positions))))
+					(= row (- (caar positions)
+						  (- col (cadar positions)))))
+				    #f]
+				   [else (not-found-diag row col (cdr positions))]))))
+	
+    (if (= k 1)
+          #t
+          (let ((row (caar positions))
+		(col k))
+	    (and (not-found-row row (cdr positions))
+                 (not-found-diag row col (cdr positions)))))))
+  
+(define (enumerate-interval i j)
+  (letrec ((iter (lambda (x result)
+		   (if (< x i)
+		       result
+		       (iter (- x 1) (cons x result))))))
+    (iter j '())))
+
+(define (flatmap proc seq)
+  (fold-right append '() (map proc seq)))
+
+(define (fold-right op initial sequence)
+  (if (null? sequence)
+      initial
+      (op (car sequence) (fold-right op initial (cdr sequence)))))
+
+;; 2.43
+;; (queen-cols (- k 1))の計算が重複して実行されるため。
+;; queen-colsが呼ばれる回数は以下のようになる。
+;; はやい版
+;; board-size = 1のとき2回
+;; board-size = 2のとき3回
+;; board-size = nのときn+1回
+;; おそい版
+;; board-size = 1のとき2回
+;; board-size = 2のとき1+2*1+2*2回
+;; board-size = nのとき1+n*1+n*2+...+n*n回
+;; T' = O(T^3)
+(define (queens board-size)
+  (letrec ((queen-cols
+	    (lambda (k)
+	      (begin
+		(display "queen-cols:")
+		(display k)
+		(newline)
+	      (if (= k 0)
+		  (list empty-board)
+		  (filter
+		   (lambda (positions) (safe? k positions))
+		   (flatmap
+		    (lambda (new-row)
+		      (map (lambda (rest-of-queens)
+			     (adjoin-position new-row k rest-of-queens))
+			   (queen-cols (- k 1))))
+		    (enumerate-interval 1 board-size))))))))
     (queen-cols board-size)))
 
 (define (adjoin-position new-row k rest-of-queens)
