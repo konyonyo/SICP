@@ -754,3 +754,62 @@
   (if (null? sequence)
       initial
       (op (car sequence) (fold-right op initial (cdr sequence)))))
+
+;; 2.44
+(define (up-split painter n)
+  (if (zero? n)
+      painter
+      (let ((smaller (up-split painter (- n 1))))
+	(below painter (beside smaller smaller)))))
+
+;; 2.45
+(define (split f1 f2)
+  (lambda (painter n)
+    (if (zero? n)
+	painter
+	(let ((smaller ((split f1 f2) painter (- n 1))))
+	  (f1 painter (f2 smaller smaller))))))
+
+;; 2.46
+(define (make-vect x y)
+  (cons x y))
+
+(define (xcor-vect v)
+  (car v))
+
+(define (ycor-vect v)
+  (cdr v))
+
+(define (add-vect v1 v2)
+  (make-vect (+ (xcor-vect v1) (xcor-vect v2))
+	     (+ (ycor-vect v1) (ycor-vect v2))))
+
+(define (sub-vect v1 v2)
+  (make-vect (- (xcor-vect v1) (xcor-vect v2))
+	     (- (ycor-vect v1) (ycor-vect v2))))
+
+(define (scale-vect s v)
+  (make-vect (* s (xcor-vect v)) (* s (ycor-vect v))))
+
+;; 2.47
+;; 1
+(define (origin frame)
+  (car frame))
+
+(define (edge1 frame)
+  (cadr frame))
+
+(define (edge2 frame)
+  (caddr frame))
+
+;; 2
+(define (origin frame)
+  (car frame))
+
+(define (edge1 frame)
+  (cadr frame))
+
+(define (edge2 frame)
+  (cddr frame))
+
+

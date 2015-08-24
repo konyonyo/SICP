@@ -1,0 +1,36 @@
+;; 座標軸とビューポート
+(use gl)
+(use gl.glut)
+
+(define (display)
+  (gl-clear GL_COLOR_BUFFER_BIT)
+  (gl-begin GL_POLYGON)
+  (gl-color 1.0 0.0 0.0)
+  (gl-vertex -0.9 -0.9)
+  (gl-color 0.0 1.0 0.0)
+  (gl-vertex 0.9 -0.9)
+  (gl-color 0.0 0.0 1.0)
+  (gl-vertex 0.9 0.9)
+  (gl-color 1.0 1.0 0.0)
+  (gl-vertex -0.9 0.9)
+  (gl-end)
+  (gl-flush))
+
+(define (resize w h)
+  (gl-viewport 0 0 w h)
+  (gl-load-identity)
+  (gl-ortho (/ (* -1 w) 200.0) (/ w 200.0) (/ (* -1 h) 200.0) (/ h 200.0) -1.0 1.0))
+
+(define (init)
+  (gl-clear-color 0.0 0.0 1.0 1.0))
+
+(define (main args)
+  (glut-init args)
+  (glut-init-display-mode GLUT_RGBA)
+  (glut-create-window "test")
+  (glut-display-func display)
+  (glut-reshape-func resize)
+  (init)
+  (glut-main-loop)
+  0)
+
