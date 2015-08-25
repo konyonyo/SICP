@@ -812,4 +812,97 @@
 (define (edge2 frame)
   (cddr frame))
 
+;; 2.48
+(define (make-segment start end)
+  (cons start end))
 
+(define (start-segment segment)
+  (car segment))
+
+(define (end-segment segment)
+  (cdr segment))
+
+;; 2.49
+;; a
+(define painter-a
+  (segments->painter
+   (list (make-segment (make-vect 0.0 0.0) (make-vect 1.0 0.0))
+	 (make-segment (make-vect 1.0 0.0) (make-vect 1.0 1.0))
+	 (make-segment (make-vect 1.0 1.0) (make-vect 0.0 1.0))
+	 (make-segment (make-vect 0.0 1.0) (make-vect 0.0 0.0)))))
+
+;; b
+(define painter-b
+  (segments->painter
+   (list (make-segment (make-vect 0.0 0.0) (make-vect 1.0 1.0))
+	 (make-segment (make-vect 1.0 0.0) (make-vect 0.0 1.0)))))
+
+;; c
+(define painter-c
+  (segments->painter
+   (list (make-segment (make-vect 0.5 0.0) (make-vect 1.0 0.5))
+	 (make-segment (make-vect 1.0 0.5) (make-vect 0.5 1.0))
+	 (make-segment (make-vect 0.5 1.0) (make-vect 0.0 0.5))
+	 (make-segment (make-vect 0.0 0.5) (make-vect 0.5 0.0)))))
+
+;; d
+(define painter-d
+  (segments->painter
+   (list (make-segment (make-vect 0.3 0.0) (make-vect 0.4 0.5))
+	 (make-segment (make-vect 0.4 0.5) (make-vect 0.3 0.6))
+	 (make-segment (make-vect 0.3 0.6) (make-vect 0.2 0.4))
+	 (make-segment (make-vect 0.2 0.4) (make-vect 0.0 0.7))
+	 (make-segment (make-vect 0.0 0.8) (make-vect 0.2 0.7))
+	 (make-segment (make-vect 0.2 0.7) (make-vect 0.3 0.8))
+	 (make-segment (make-vect 0.3 0.8) (make-vect 0.4 0.8))
+	 (make-segment (make-vect 0.4 0.8) (make-vect 0.3 0.9))
+	 (make-segment (make-vect 0.3 0.9) (make-vect 0.4 1.0))
+	 (make-segment (make-vect 0.6 1.0) (make-vect 0.7 0.9))
+	 (make-segment (make-vect 0.7 0.9) (make-vect 0.6 0.8))
+	 (make-segment (make-vect 0.6 0.8) (make-vect 0.7 0.8))
+	 (make-segment (make-vect 0.7 0.8) (make-vect 1.0 0.4))
+	 (make-segment (make-vect 1.0 0.3) (make-vect 0.6 0.6))
+	 (make-segment (make-vect 0.6 0.6) (make-vect 0.7 0.0))
+	 (make-segment (make-vect 0.6 0.0) (make-vect 0.5 0.3))
+	 (make-segment (make-vect 0.5 0.3) (make-vect 0.4 0.0)))))
+
+;; 2.50
+(define (flip-horiz painter)
+  (transform-painter painter
+		     (make-vect 1.0 0.0)
+		     (make-vect 0.0 0.0)
+		     (make-vect 1.0 1.0)))
+
+(define (rotate180 painter)
+  (transform-painter painter
+		     (make-vect 1.0 1.0)
+		     (make-vect 0.0 1.0)
+		     (make-vect 1.0 0.0)))
+
+(define (rotate270 painter)
+  (transform-painter painter
+		     (make-vect 0.0 1.0)
+		     (make-vect 0.0 0.0)
+		     (make-vect 1.0 1.0)))
+
+;; 2.51
+(define (below painter1 painter2)
+  (let ((split-point (make-vect 0.0 0.5)))
+    (let ((paint-bottom
+	   (transform-painter painter1
+			      (make-vect 0.0 0.0)
+			      (make-vect 1.0 0.0)
+			      split-point))
+	  (paint-top
+	   (transform-painter painter2
+			      split-point
+			      (make-vect 1.0 0.5)
+			      (make-vect 0.0 1.0))))
+      (lambda (frame)
+	(paint-bottom frame)
+	(paint-top frame)))))
+
+(define (below painter1 painter2)
+  (let ((painter1-rotete270 (rotate270 painter1))
+	(painter2-rotate270 (rotate270 painter2)))
+    (rotate180 (rotate270 (beside painter1-rotate270 painter2-rotate270)))))
