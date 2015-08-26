@@ -906,3 +906,45 @@
   (let ((painter1-rotete270 (rotate270 painter1))
 	(painter2-rotate270 (rotate270 painter2)))
     (rotate180 (rotate270 (beside painter1-rotate270 painter2-rotate270)))))
+
+;; 2.52
+;; a
+(define painter-d
+  (segments->painter
+   (list (make-segment (make-vect 0.3 0.0) (make-vect 0.4 0.5))
+	 (make-segment (make-vect 0.4 0.5) (make-vect 0.3 0.6))
+	 (make-segment (make-vect 0.3 0.6) (make-vect 0.2 0.4))
+	 (make-segment (make-vect 0.2 0.4) (make-vect 0.0 0.7))
+	 (make-segment (make-vect 0.0 0.8) (make-vect 0.2 0.7))
+	 (make-segment (make-vect 0.2 0.7) (make-vect 0.3 0.8))
+	 (make-segment (make-vect 0.3 0.8) (make-vect 0.4 0.8))
+	 (make-segment (make-vect 0.4 0.8) (make-vect 0.3 0.9))
+	 (make-segment (make-vect 0.3 0.9) (make-vect 0.4 1.0))
+	 (make-segment (make-vect 0.6 1.0) (make-vect 0.7 0.9))
+	 (make-segment (make-vect 0.7 0.9) (make-vect 0.6 0.8))
+	 (make-segment (make-vect 0.6 0.8) (make-vect 0.7 0.8))
+	 (make-segment (make-vect 0.7 0.8) (make-vect 1.0 0.4))
+	 (make-segment (make-vect 1.0 0.3) (make-vect 0.6 0.6))
+	 (make-segment (make-vect 0.6 0.6) (make-vect 0.7 0.0))
+	 (make-segment (make-vect 0.6 0.0) (make-vect 0.5 0.3))
+	 (make-segment (make-vect 0.5 0.3) (make-vect 0.4 0.0))
+	 (make-segment (make-vect 0.4 0.95) (make-vect 0.4 0.9))
+	 (make-segment (make-vect 0.6 0.95) (make-vect 0.6 0.9))
+	 (make-segment (make-vect 0.4 0.85) (make-vect 0.5 0.8))
+	 (make-segment (make-vect 0.5 0.8) (make-vect 0.6 0.85)))))
+
+;; b
+(define (corner-split painter n)
+  (if (zero? n)
+      painter
+      (let ((up (up-split painter (- n 1)))
+	    (right (right-split painter (- n 1)))
+	    (corner (corner-split painter (- n 1))))
+	(beside (below painter up)
+		(below right corner)))))
+
+;; c
+(define (square-limit painter n)
+  (let ((combine4 (square-of-four flip-vert rotate180
+				  identity  flip-horiz)))
+    (combine4 (corner-split painter n))))
