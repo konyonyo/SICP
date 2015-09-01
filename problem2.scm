@@ -1133,5 +1133,150 @@
 
 (define (exponent x) (caddr x))
 
+;; 2.58
+;; a
+(define (make-sum a1 a2)
+  (cond [(=number? a1 0) a2]
+	[(=number? a2 0) a1]
+	[(and (number? a1) (number? a2)) (+ a1 a2)]
+	[else (list a1 '+ a2)]))
+
+(define (sum? x)
+  (and (pair? x) (eq? (cadr x) '+)))
+
+(define (addend s) (car s))
+
+(define (augend s) (caddr s))
+
+(define (make-product m1 m2)
+  (cond [(or (=number? m1 0) (=number? m2 0)) 0]
+	[(=number? m1 1) m2]
+	[(=number? m2 1) m1]
+	[(and (number? m1) (number? m2)) (* m1 m2)]
+	[else (list m1 '* m2)]))
+
+(define (product? x)
+  (and (pair? x) (eq? (cadr x) '*)))
+
+(define (multiplier p) (car p))
+
+(define (multiplicand p) (caddr p))
+
+(define (deriv exp var)
+  (cond [(number? exp) 0]
+	[(variable? exp) (if (same-variable? exp var) 1 0)]
+	[(sum? exp) (make-sum (deriv (addend exp) var)
+			      (deriv (augend exp) var))]
+	[(product? exp)
+	 (make-sum
+	  (make-product (multiplier exp)
+			(deriv (multiplicand exp) var))
+	  (make-product (deriv (multiplier exp) var)
+			(multiplicand exp)))]
+	[else
+	 (error "unknown expression type -- DERIV" exp)]))
+
+(define (variable? x) (symbol? x))
+
+(define (same-variable? v1 v2)
+  (and (variable? v1) (variable? v2) (eq? v1 v2)))
+
+(define (=number? exp num)
+  (and (number? exp) (= exp num)))
+
+;; b
+(define (variable? x) (symbol? x))
+
+(define (rm-paren x)
+  (if (one-elem-list? x)
+      (if (or (number? (car x)) (variable? (car x)))
+	  (car x)
+	  (rm-paren (car x)))
+      x))
+
+(define (one-elem-list? x)
+  (and (pair? x) (null? (cdr x))))
+
+(define (sum? x)
+  (let ((item (rm-paren x)))
+    (and (pair? item) (term? (previous '+ item)))))
+
+(define (term? x)
+  (if (not (pair? x))
+      (or (number? x) (variable? x))
+      (or (one-elem-list? x) (not (member? '+ x)))))
+
+(define (member? item x)
+  (cond [(null? x) #f]
+	[(eq? item (car x)) #t]
+	[else (member? item (cdr x))]))
+
+(define (previous item x)
+  (letrec ((iter (lambda (result rest)
+		   (cond [(null? rest) '()]
+			 [(eq? (car rest) item) (reverse result)]
+			 [else (iter (cons (car rest) result) (cdr rest))]))))
+    (iter '() x)))
+
+(define (next item x)
+  (cond [(null? x) '()]
+	[(eq? (car x) item) (cdr x)]
+	[else (next item (cdr x))]))
+
+(define (addend s)
+  (rm-paren (previous '+ (rm-paren s))))
+
+(define (augend s)
+  (rm-paren (next '+ (rm-paren s))))
+
+(define (operators x)
+  (filter (lambda (y) (or (eq? y '+) (eq? y '*))) x))
+
+(define (product? x)
+  (let ((item (rm-paren x)))
+    (and (pair? item)
+	 (not (null? (operators item)))
+	 (eq? (car (operators item)) '*)
+	 (term? (next '* item)))))
+
+(define (multiplier p)
+  (rm-paren (previous '* (rm-paren p))))
+
+(define (multiplicand p)
+  (rm-paren (next '* (rm-paren p))))
+
+(define (deriv exp var)
+  (cond [(number? exp) 0]
+	[(variable? exp) (if (same-variable? exp var) 1 0)]
+	[(sum? exp)
+	 (make-sum (deriv (addend exp) var)
+		   (deriv (augend exp) var))]
+	[(product? exp)
+	 (make-sum
+	  (make-product (multiplier exp)
+			(deriv (multiplicand exp) var))
+	  (make-product (deriv (multiplier exp) var)
+			(multiplicand exp)))]
+	[else (error "unknown expression type -- DERIV" exp)]))
+
+(define (same-variable? v1 v2)
+  (and (variable? v1) (variable? v2) (eq? v1 v2)))
+
+(define (=number? exp num)
+  (and (number? exp) (= exp num)))
+
+(define (make-sum a1 a2)
+  (cond [(=number? a1 0) a2]
+	[(=number? a2 0) a1]
+	[(and (number? a1) (number? a2)) (+ a1 a2)]
+	[else (list a1 '+ a2)]))
+
+(define (make-product m1 m2)
+  (cond [(or (=number? m1 0) (=number? m2 0)) 0]
+	[(=number? m1 1) m2]
+	[(=number? m2 1) m1]
+	[(and (number? m1) (number? m2)) (* m1 m2)]
+	[else (list m1 '* m2)]))
+
 
 
