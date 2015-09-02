@@ -1278,5 +1278,20 @@
 	[(and (number? m1) (number? m2)) (* m1 m2)]
 	[else (list m1 '* m2)]))
 
+;; 2.59
+(define (union-set set1 set2)
+  (cond [(null? set1) set2]
+	[(null? set2) set1]
+	[(element-of-set? (car set1) set2)
+	 (union-set (cdr set1) set2)]
+	[else (cons (car set1) (union-set (cdr set1) set2))]))
 
+;; 2.60
+(define (adjoin-set x set)
+  (cons x set))
+
+(define (union-set set1 set2)
+  (append set1 set2))
+
+;; element-of-set?, intersection‚Í•Ï‚¦‚È‚­‚Ä‚æ‚¢B
 
