@@ -1295,3 +1295,115 @@
 
 ;; element-of-set?, intersectionは変えなくてよい。
 
+;; 2.61
+(define (adjoin-set x set)
+  (cond [(null? set) (cons x set)]
+	[(= (car set) x) set]
+	[(< x (car set)) (cons x set)]
+	[(< (car set) x) (cons (car set) (adjoin-set x (cdr set)))]))
+
+;; 2.62
+(define (union-set set1 set2)
+  (cond [(null? set1) set2]
+	[(null? set2) set1]
+	[else (let ((x1 (car set1))
+		    (x2 (car set2)))
+		(cond [(= x1 x2) (cons x1 (union-set (cdr set1) (cdr set2)))]
+		      [(< x1 x2) (cons x1 (union-set (cdr set1) set2))]
+		      [(< x2 x1) (cons x2 (union-set set1 (cdr set2)))]))]))
+
+;; 2.63
+(define (tree->list-1 tree)
+  (if (null? tree)
+      '()
+      (append (tree->list-1 (left-branch tree))
+	      (cons (entry tree) (tree->list-1 (right-branch tree))))))
+
+(define (tree->list-2 tree)
+  (letrec ((copy-to-list (lambda (tree result-list)
+			   (if (null? tree)
+			       result-list
+			       (copy-to-list
+				(left-branch tree)
+				(cons (entry tree)
+				      (copy-to-list (right-branch tree)
+						    result-list)))))))
+    (copy-to-list tree '())))
+
+(define (make-tree entry left right)
+  (list entry left right))
+
+(define (entry tree) (car tree))
+
+(define (left-branch tree) (cadr tree))
+
+(define (right-branch tree) (caddr tree))
+
+(define tree1 (make-tree 7
+			 (make-tree 3
+				    (make-tree 1 '() '())
+				    (make-tree 5 '() '()))
+			 (make-tree 9
+				    '()
+				    (make-tree 11 '() '()))))
+
+(define tree2 (make-tree 3
+			 (make-tree 1 '() '())
+			 (make-tree 7
+				    (make-tree 5 '() '())
+				    (make-tree 9
+					       '()
+					       (make-tree 11 '() '())))))
+
+(define tree3 (make-tree 5
+			 (make-tree 3
+				    (make-tree 1 '() '())
+				    '())
+			 (make-tree 9
+				    (make-tree 7 '() '())
+				    (make-tree 11 '() '()))))
+
+;; a すべての木に対して同じ結果を生じる。
+
+;; b
+;; tree->list-1はO(log(n))
+;; tree->list-2は、(n/2)*(n/2) -> (n/2^2)*(n/2^2) -> ... -> (n/2^x)*(n/2^x)
+;; 2^x*2^x = 2^(2x) = n^2より、x = log(n)
+;; すなわちステップ数の増加の程度は同じ。
+
+;; 2.64
+(define (list->tree elements)
+  (car (partial-tree elements (length elements))))
+
+(define (partial-tree elts n)
+  (if (= n 0)
+      (cons '() elts)
+      (let ((left-size (quotient (- n 1) 2)))
+	(let ((left-result (partial-tree elts left-size)))
+	  (let ((left-tree (car left-result))
+	        (non-left-elts (cdr left-result))
+	        (right-size (- n (+ left-size 1))))
+	    (let ((this-entry (car non-left-elts))
+		  (right-result (partial-tree
+				 (cdr non-left-elts) right-size)))
+	      (let ((right-tree (car right-result))
+		    (remaining-elts (cdr right-result)))
+	        (cons (make-tree this-entry left-tree right-tree)
+		      remaining-elts))))))))
+
+;; a
+;; 左部分木のサイズはfloor((n - 1)/2)。
+;; 左部分木はpartial-treeに左部分木のサイズを引数として与えることにより、得られる。
+;; 節はpartial-treeのcadrである。
+;; 右部分木のサイズはn - (左部分木のサイズ + 1)。
+;; 右部分木はpartial-treeに右部分木のサイズを引数として与えることにより、得られる。
+;; 上記で評価するpartial-treeに引数として与える部分木のサイズが0になるまで、
+;; 上記のプロセスが繰り返される。
+;; 得られた節、左部分木、右部分木を使って木を構成する。
+
+;; リスト(1 3 5 7 9 11)に対して作る木は
+;; (5 (1 () (3 () ())) (9 (7 () ()) (11 () ())))。
+
+;; b
+;; partial-treeの引数であるサイズは半分ずつになっていくため、O(log(n))。
+
