@@ -1407,3 +1407,34 @@
 ;; b
 ;; partial-treeの引数であるサイズは半分ずつになっていくため、O(log(n))。
 
+;; 2.65
+(define (union-set tree1 tree2)
+  (letrec ((union-set-sub (lambda (set1 set2)
+			    (cond [(null? set1) set2]
+				  [(null? set2) set1]
+				  [else (let ((x1 (car set1))
+					      (x2 (car set2)))
+					  (cond [(= x1 x2) (cons x1 (union-set-sub (cdr set1) (cdr set2)))]
+						[(< x1 x2) (cons x1 (union-set-sub (cdr set1) set2))]
+						[(< x2 x1) (cons x2 (union-set-sub set1 (cdr set2)))]))]))))
+    (let ((set1 (tree->list-1 tree1))
+	  (set2 (tree->list-1 tree2)))
+      (union-set-sub set1 set2))))
+
+(define (intersection-set tree1 tree2)
+  (letrec ((intersection-set-sub (lambda (set1 set2)
+				   (if (or (null? set1) (null? set2))
+				       '()
+				       (let ((x1 (car set1))
+					     (x2 (car set2)))
+					 (cond [(= x1 x2) (cons x1 (intersection-set-sub (cdr set1) (cdr set2)))]
+					       [(< x1 x2) (intersection-set-sub (cdr set1) set2)]
+					       [(< x2 x1) (intersection-set-sub set1 (cdr set2))]))))))
+    (let ((set1 (tree->list-1 tree1))
+	  (set2 (tree->list-1 tree2)))
+      (intersection-set-sub set1 set2))))
+				  
+
+
+
+
