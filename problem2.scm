@@ -660,14 +660,14 @@
 						  (- col (cadar positions)))))
 				    #f]
 				   [else (not-found-diag row col (cdr positions))]))))
-	
+
     (if (= k 1)
           #t
           (let ((row (caar positions))
 		(col k))
 	    (and (not-found-row row (cdr positions))
                  (not-found-diag row col (cdr positions)))))))
-  
+
 (define (enumerate-interval i j)
   (letrec ((iter (lambda (x result)
 		   (if (< x i)
@@ -732,14 +732,14 @@
 						  (- col (cadar positions)))))
 				    #f]
 				   [else (not-found-diag row col (cdr positions))]))))
-	
+
     (if (= k 1)
           #t
           (let ((row (caar positions))
 		(col k))
 	    (and (not-found-row row (cdr positions))
                  (not-found-diag row col (cdr positions)))))))
-  
+
 (define (enumerate-interval i j)
   (letrec ((iter (lambda (x result)
 		   (if (< x i)
@@ -1433,7 +1433,7 @@
     (let ((set1 (tree->list-1 tree1))
 	  (set2 (tree->list-1 tree2)))
       (intersection-set-sub set1 set2))))
-				  
+
 
 ;; 2.66
 (define (lookup given-key set-of-records)
@@ -1519,3 +1519,29 @@
 
 ;; (decode sample-message sample-tree) => (A D A B B C A)
 
+;; 2.68
+(define (encode message tree)
+  (if (null? message)
+      '()
+      (append (encode-symbol (car message) tree)
+              (encode (cdr message) tree))))
+
+(define (encode-symbol symbol tree)
+  (letrec ((encode-symbol-sub
+            (lambda (bits tree)
+              (cond [(not (member? symbol (symbols tree)))
+                     (error "not found symbol -- ENCODE-SYMBOL" symbol)]
+                    [(member? symbol (symbols (left-branch tree)))
+                     (if (leaf? (left-branch tree))
+                         (reverse (cons 0 bits))
+                         (encode-symbol-sub (cons 0 bits) (left-branch tree)))]
+                    [else
+                     (if (leaf? (right-branch tree))
+                         (reverse (cons 1 bits))
+                         (encode-symbol-sub (cons 1 bits) (right-branch tree)))]))))
+    (encode-symbol-sub '() tree)))
+
+(define (member? item x)
+  (cond [(null? x) #f]
+        [(equal? (car x) item) #t]
+        [else (member? item (cdr x))]))
