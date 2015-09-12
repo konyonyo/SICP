@@ -1545,3 +1545,28 @@
   (cond [(null? x) #f]
         [(equal? (car x) item) #t]
         [else (member? item (cdr x))]))
+
+;; 2.69
+(define (generate-huffman-tree pairs)
+  (successive-merge (make-leaf-set pairs)))
+
+(define (successive-merge trees)
+  (if (null? (cdr trees))
+      (car trees)
+      (successive-merge
+       (adjoin-set (make-code-tree (car trees) (cadr trees))
+                   (cddr trees)))))
+
+;; 2.70
+(define rock-pairs '((A 2) (NA 16) (BOOM 1) (SHA 3) (GET 2) (YIP 9) (JOB 2) (WAH 1)))
+
+(define rock-tree (generate-huffman-tree rock-pairs))
+
+(define song '(GET A JOB SHA NA NA NA NA NA NA NA NA GET A JOB SHA NA NA NA NA NA NA NA NA WAH YIP YIP YIP YIP YIP YIP YIP YIP YIP SHA BOOM))
+
+(encode song rock-tree)
+;; => (1 1 1 1 1 1 1 0 0 1 1 1 1 0 1 1 1 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 0 0 1 1 1 1 0 1 1 1 0 0 0 0 0 0 0 0 0 1 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 1 1 0 1 1 0 1 1)
+;; => 84bit
+
+;; 8記号アルファベットの固定長符号を使うと、符号化するのに必要な最小ビット数は、
+;; (* (length song) 3) = 108bit。
