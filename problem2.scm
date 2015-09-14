@@ -1570,3 +1570,106 @@
 
 ;; 8記号アルファベットの固定長符号を使うと、符号化するのに必要な最小ビット数は、
 ;; (* (length song) 3) = 108bit。
+
+;; 2.73
+(define (deriv exp var)
+  (cond [(number? exp) 0]
+        [(variable? exp) (if (same-variable? exp var) 1 0)]
+        [else ((get 'deriv (operator exp)) (operands exp) var)]))
+
+(define (operator exp) (car exp))
+
+(define (operands exp) (cdr exp))
+
+;; a
+;; 型タグであるoperatorに対応する演算derivをgetして実行する。
+;; numberとvariableはpairでないため、operatorやoperandsを実行するために
+;; numberとvariableに対してcar, cdrを実行するとエラーになるから。
+
+;; b
+(define (deriv-sum operands var)
+  (make-sum (deriv (addend operands) var)
+            (deriv (augend operands) var)))
+
+(put 'deriv '+ deriv-sum)
+
+(define (deriv-product operands var)
+  (make-sum (make-product (multiplier operands)
+                          (deriv (multiplicand operands) var))
+            (make-product (deriv (multiplier operands) var)
+                          (multiplicand operands))))
+
+(put 'deriv '* deriv-product)
+
+;; c
+(define (deriv-exponentiation operands var)
+  (make-product (make-product (base operands)
+                              (make-exponentiation (base operands)
+                                                   (- (exponent operands) 1)))
+                (deriv (base operands) var)))
+
+(put 'deriv '** deriv-exponentiation)
+
+;; d
+;; 表の行と列の入れ替えが必要。つまりput手続きを変更する必要がある。
+
+;; 2.74
+;; a
+(define (get-record employee-name file)
+  ((get 'get-record (office file)) employee-name file))
+
+;; 事業所ファイルはofficeという型情報を持つ。
+
+;; b
+(define (get-salary employee-record)
+  ((get 'get-salary (office employee-record)) employee-record))
+
+;; 各従業員のレコードはofficeという型情報を持つ。
+
+;; c
+(define (find-employee-record employee-name files)
+  (if (null? files)
+      '()
+      (if (null? (get-record employee-neme (car files)))
+          (find-employee-record employee-name (cdr files))
+          (get-record employee-name (car files)))))
+
+;; d
+;; 新しいofficeに対応する新しいget-record手続き、get-salary手続き、get-address手続き
+;; などを定義し、
+;; (put 'get-record <office> get-record-<office>)
+;; (put 'get-salary <office> get-salary-<office>)
+;; (put 'get-address <office> get-address-<office>)
+;; というように、定義した手続きを表に登録する。
+
+;; 2.75
+(define (make-from-mag-ang r a)
+  (let ((dispatch (lambda (op)
+                    (cond [(eq? op 'real-part) (* r (cos a))]
+                          [(eq? op 'imag-part) (* r (sin a))]
+                          [(eq? op 'magnitude) r]
+                          [(eq? op 'angle) a]
+                          [else (error "Unknown op -- MAKE-FROM-MAG-ANG" op)]))))
+    dispatch))
+
+;; 2.76
+;; 1. 施すべき変更
+;;  (i) 明白な振分けを持つ汎用演算
+;;    新しい型を追加する時、新しい型の構成子、選択子を追加する必要がある。
+;;    新しい演算を追加する時、変更なし。
+;;  (ii) データ主導流
+;;    新しい型を追加する時、新しい型に対応する既存の演算を追加する必要がある。
+;;    また、その演算をputする必要がある。
+;;    新しい演算を追加する時、既存の型に対応する新しい演算を追加する必要がある。
+;;    また、その演算をputする必要がある。
+;;  (iii) メッセージパッシング流
+;;    新しい型を追加する時、新しい型に対応する既存の演算を追加する必要がある。
+;;    (新しい型のデータオブジェクトである関数を追加する。)
+;;    新しい演算を追加する時、既存の型に対応する新しい演算を追加する必要がある。
+;;    (既存の型のデータオブジェクトである関数を書き換える。)
+;;
+;; 2. 新しい型が絶えず追加されるシステムに最適な方法
+;;  メッセージパッシング流(追加される型に対応する1つの関数を追加すればよいため。)
+;;
+;; 3. 新しい演算が絶えず追加されるシステムに最適な方法
+;;  明白な振分けを持つ汎用演算(変更がないため。)
