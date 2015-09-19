@@ -1675,6 +1675,22 @@
 ;;  –¾”’‚ÈU•ª‚¯‚ğ‚Â”Ä—p‰‰Z(•ÏX‚ª‚È‚¢‚½‚ßB)
 
 ;; ”Ä—pZp‰‰Z
+;; 2.77
+(define table '())
+
+(define (put func type contents)
+  (set! table (cons (list func type contents) table)))
+
+(define (get func type)
+  (letrec ((get-sub (lambda (func type table)
+                      (cond [(null? table)
+                             (error "table is null -- GET" func type)]
+                            [(and (equal? func (caar table))
+                                  (equal? type (cadar table)))
+                             (caddar table)]
+                            [else (get-sub func type (cdr table))]))))
+    (get-sub func type table)))
+
 (define (attach-tag type-tag contents)
   (cons type-tag contents))
 
@@ -1742,25 +1758,25 @@
             (div-rat (lambda (x y)
                        (make-rat (* (numer x) (denom y))
                                  (* (denom x) (numer y)))))
-            (tag (lambda (x) (attach-tag 'rational x)))
-            (put 'add '(rational rational)
-                 (lambda (x y) (tag (add-rat x y))))
-            (put 'sub '(rational rational)
-                 (lambda (x y) (tag (sub-rat x y))))
-            (put 'mul '(rational rational)
-                 (lambda (x y) (tag (mul-rat x y))))
-            (put 'div '(rational rational)
-                 (lambda (x y) (tag (div-rat x y))))
-            (put 'make 'rational
-                 (lambda (n d) (tag (make-rat n d))))
-            'done)))
+            (tag (lambda (x) (attach-tag 'rational x))))
+           (put 'add '(rational rational)
+                (lambda (x y) (tag (add-rat x y))))
+           (put 'sub '(rational rational)
+                (lambda (x y) (tag (sub-rat x y))))
+           (put 'mul '(rational rational)
+                (lambda (x y) (tag (mul-rat x y))))
+           (put 'div '(rational rational)
+                (lambda (x y) (tag (div-rat x y))))
+           (put 'make 'rational
+                (lambda (n d) (tag (make-rat n d))))
+           'done))
 
 (define (make-rational n d)
   ((get 'make 'rational) n d))
 
 (define (install-complex-package)
   (let* ((make-from-real-imag (lambda (x y)
-                                ((get 'make-from-real-imag 'rectangle) x y)))
+                                ((get 'make-from-real-imag 'rectangular) x y)))
          (make-from-mag-ang (lambda (r a)
                               ((get 'make-from-mag-ang 'polar) r a)))
          (add-complex (lambda (z1 z2)
@@ -1779,20 +1795,24 @@
                         (make-from-mag-ang
                          (/ (magnitude z1) (magnitude z2))
                          (- (angle z1) (angle z2)))))
-         (tag (lambda (z) (attach-tag 'complex z)))
-         (put 'add '(complex complex)
-              (lambda (z1 z2) (tag (add-complex z1 z2))))
-         (put 'sub '(complex complex)
-              (lambda (z1 z2) (tag (sub-complex z1 z2))))
-         (put 'mul '(complex complex)
-              (lambda (z1 z2) (tag (mul-complex z1 z2))))
-         (put 'div '(complex complex)
-              (lambda (z1 z2) (tag (div-complex z1 z2))))
-         (put 'make-from-real-imag 'complex
-              (lambda (x y) (tag (make-from-real-imag x y))))
-         (put 'make-from-mag-ang 'complex
-              (lambda (r a) (tag (make-from-mag-ang r a))))
-         'done)))
+         (tag (lambda (z) (attach-tag 'complex z))))
+    (put 'add '(complex complex)
+         (lambda (z1 z2) (tag (add-complex z1 z2))))
+    (put 'sub '(complex complex)
+         (lambda (z1 z2) (tag (sub-complex z1 z2))))
+    (put 'mul '(complex complex)
+         (lambda (z1 z2) (tag (mul-complex z1 z2))))
+    (put 'div '(complex complex)
+         (lambda (z1 z2) (tag (div-complex z1 z2))))
+    (put 'real-part '(complex) real-part)
+    (put 'imag-part '(complex) imag-part)
+    (put 'magnitude '(complex) magnitude)
+    (put 'angle '(complex) angle)
+    (put 'make-from-real-imag 'complex
+         (lambda (x y) (tag (make-from-real-imag x y))))
+    (put 'make-from-mag-ang 'complex
+         (lambda (r a) (tag (make-from-mag-ang r a))))
+    'done))
 
 (define (make-complex-from-real-imag x y)
   ((get 'make-from-real-imag 'complex) x y))
@@ -1801,23 +1821,23 @@
   ((get 'make-from-mag-ang 'complex) r a))
 
 (define (install-rectangular-package)
-  (let* ((read-part (lambda (z) (car z)))
+  (let* ((real-part (lambda (z) (car z)))
          (imag-part (lambda (z) (cdr z)))
          (make-from-real-imag (lambda (x y) (cons x y)))
          (magnitude (lambda (z) (sqrt (+ (square (real-part z))
                                          (square (imag-part z))))))
          (angle (lambda (z) (atan (imag-part z) (real-part z))))
          (make-from-mag-ang (lambda (r a) (cons (* r (cos a)) (* r (sin a)))))
-         (tag (lambda (x) (attach-tag 'rectangular x)))
-         (put 'real-part '(rectangular) real-part)
-         (put 'imag-part '(rectangular) imag-part)
-         (put 'magnitude '(rectangular) magnitude)
-         (put 'angle '(rectangular) angle)
-         (put 'make-from-real-imag 'rectangular
-              (lambda (x y) (tag (make-from-real-imag x y))))
-         (put 'make-from-mag-ang 'rectangular
-              (lambda (r a) (tag (make-from-mag-ang r a))))
-         'done)))
+    (tag (lambda (x) (attach-tag 'rectangular x))))
+    (put 'real-part '(rectangular) real-part)
+    (put 'imag-part '(rectangular) imag-part)
+    (put 'magnitude '(rectangular) magnitude)
+    (put 'angle '(rectangular) angle)
+    (put 'make-from-real-imag 'rectangular
+         (lambda (x y) (tag (make-from-real-imag x y))))
+    (put 'make-from-mag-ang 'rectangular
+         (lambda (r a) (tag (make-from-mag-ang r a))))
+    'done))
 
 (define (install-polar-package)
   (let* ((magnitude (lambda (z) (car z)))
@@ -1828,18 +1848,43 @@
          (make-from-real-imag (lambda (x y)
                                 (cons (sqrt (+ (square x) (square y)))
                                       (atan y x))))
-         (tag (lambda (x) (attach-tag 'polar x)))
-         (put 'real-part '(polar) real-part)
-         (put 'imag-part '(polar) imag-part)
-         (put 'magnitude '(polar) magnitude)
-         (put 'angle '(polar) angle)
-         (put 'make-from-real-imag 'polar
-              (lambda (x y) (tag (make-from-real-imag x y))))
-         (put 'make-from-mag-ang 'polar
-              (lambda (r a) (tag (make-from-mag-ang r a))))
-         'done)))
+    (tag (lambda (x) (attach-tag 'polar x))))
+    (put 'real-part '(polar) real-part)
+    (put 'imag-part '(polar) imag-part)
+    (put 'magnitude '(polar) magnitude)
+    (put 'angle '(polar) angle)
+    (put 'make-from-real-imag 'polar
+         (lambda (x y) (tag (make-from-real-imag x y))))
+    (put 'make-from-mag-ang 'polar
+         (lambda (r a) (tag (make-from-mag-ang r a))))
+    'done))
 
 (define (real-part z) (apply-generic 'real-part z))
 (define (imag-part z) (apply-generic 'imag-part z))
 (define (magnitude z) (apply-generic 'magnitude z))
 (define (angle z) (apply-generic 'angle z))
+
+;; (magnitude z)‚ÌƒgƒŒ[ƒX
+;; (magnitude (make-complex-from-real-imag 1 2))
+;; (magnitude '(complex rectangular 1 . 2))
+;; (apply-generic 'magnitude '(complex rectangular 1 . 2))
+;; (apply (get 'magnitude (map type-tag '((complex rectangular 1 . 2))))
+;;        (map contents '((complex rectangular 1 . 2))))
+;; (apply (get 'magnitude '(complex))
+;;        '((rectangular 1 . 2)))
+;; ((get 'magnitude '(complex)) '(rectangular 1 . 2))
+;; (magnitude '(rectangular 1 . 2))
+;; (apply-generic 'magnitude '(rectangular 1 . 2))
+;; (apply (get 'magnitude (map type-tag '((rectangular 1 . 2))))
+;;        (map contents '((rectangular 1 . 2))))
+;; (apply (get 'magnitude '(rectangular))
+;;        '((1 . 2)))
+;; (apply (lambda (z) (sqrt (+ (square (real-part z)) (square (imag-part z)))))
+;;        '((1 . 2)))
+;; (sqrt (+ (square (real-part '(1 . 2)))
+;;          (square (imag-part '(1 . 2)))))
+;; (sqrt (+ (square (car '(1 . 2))) (square (cdr '(1 . 2)))))
+;; (sqrt (+ (square 1) (square 2)))
+;; apply-generic‚Í2‰ñŒÄ‚Ño‚³‚ê‚éB
+
+;; 2.78
