@@ -2205,3 +2205,273 @@
     (put 'make-from-mag-ang 'polar
          (lambda (r a) (tag (make-from-mag-ang r a))))
     'done))
+
+;; 2.81
+;; a
+(define table-coercion '())
+
+(define (put-coercion type-from type-to contents)
+  (set! table-coercion
+        (cons (list type-from type-to contents) table-coercion)))
+
+(define (get-coercion type-from type-to)
+  (letrec ((get-coercion-sub (lambda (type-from type-to table)
+                               (cond [(null? table) #f]
+                                     [(and (eq? (caar table) type-from)
+                                           (eq? (cadar table) type-to))
+                                      (caddar table)]
+                                     [else (get-coercion-sub
+                                            type-from
+                                            type-to
+                                            (cdr table))]))))
+    (get-coercion-sub type-from type-to table-coercion)))
+
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+          (apply proc (map contents args))
+          (if (= (length args) 2)
+              (let ((type1 (car type-tags))
+                    (type2 (cadr type-tags))
+                    (a1 (car args))
+                    (a2 (cadr args)))
+                (let ((t1->t2 (get-coercion type1 type2))
+                      (t2->t1 (get-coercion type2 type1)))
+                  (cond [t1->t2 (apply-generic op (t1->t2 a1) a2)]
+                        [t2->t1 (apply-generic op a1 (t2->t1 a2))]
+                        [else (error "No method for these types"
+                                     (list op type-tags))])))
+              (error "No method for these types"
+                     (list op type-tags)))))))
+
+(define table '())
+
+(define (put func type contents)
+  (set! table (cons (list func type contents) table)))
+
+(define (get func type)
+  (letrec ((get-sub (lambda (func type table)
+                      (cond [(null? table) #f]
+                            [(and (equal? func (caar table))
+                                  (equal? type (cadar table)))
+                             (caddar table)]
+                            [else (get-sub func type (cdr table))]))))
+    (get-sub func type table)))
+
+(define (attach-tag type-tag contents)
+  (if (eq? type-tag 'scheme-number)
+      contents
+      (cons type-tag contents)))
+
+(define (type-tag datum)
+  (if (pair? datum)
+      (car datum)
+      'scheme-number))
+
+(define (contents datum)
+  (if (pair? datum)
+      (cdr datum)
+      datum))
+
+(define (add x y) (apply-generic 'add x y))
+(define (sub x y) (apply-generic 'sub x y))
+(define (mul x y) (apply-generic 'mul x y))
+(define (div x y) (apply-generic 'div x y))
+
+(define (install-scheme-number-package)
+  (let ((tag (lambda (x) (attach-tag 'scheme-number x))))
+    (put 'add '(scheme-number scheme-number)
+         (lambda (x y) (tag (+ x y))))
+    (put 'sub '(scheme-number scheme-number)
+         (lambda (x y) (tag (- x y))))
+    (put 'mul '(scheme-number scheme-number)
+         (lambda (x y) (tag (* x y))))
+    (put 'div '(scheme-number scheme-number)
+         (lambda (x y) (tag (/ x y))))
+    (put 'exp '(scheme-number scheme-number)
+         (lambda (x y) (tag (expt x y))))
+    (put 'make 'scheme-number
+         (lambda (x) (tag x)))
+    'done))
+
+(define (make-scheme-number n)
+  ((get 'make 'scheme-number) n))
+
+(define (install-rational-package)
+  (letrec* ((numer (lambda (x) (car x)))
+            (denom (lambda (x) (cdr x)))
+            (make-rat (lambda (n d)
+                        (let ((g (gcd n d)))
+                          (cons (/ n g) (/ d g)))))
+            (gcd (lambda (a b)
+                   (if (zero? b)
+                       a
+                       (gcd b (remainder a b)))))
+            (add-rat (lambda (x y)
+                       (make-rat (+ (* (numer x) (denom y))
+                                    (* (numer y) (denom x)))
+                                 (* (denom x) (denom y)))))
+            (sub-rat (lambda (x y)
+                       (make-rat (- (* (numer x) (denom y))
+                                    (* (numer y) (denom x)))
+                                 (* (denom x) (denom y)))))
+            (mul-rat (lambda (x y)
+                       (make-rat (* (numer x) (numer y))
+                                 (* (denom x) (denom y)))))
+            (div-rat (lambda (x y)
+                       (make-rat (* (numer x) (denom y))
+                                 (* (denom x) (numer y)))))
+            (tag (lambda (x) (attach-tag 'rational x))))
+           (put 'add '(rational rational)
+                (lambda (x y) (tag (add-rat x y))))
+           (put 'sub '(rational rational)
+                (lambda (x y) (tag (sub-rat x y))))
+           (put 'mul '(rational rational)
+                (lambda (x y) (tag (mul-rat x y))))
+           (put 'div '(rational rational)
+                (lambda (x y) (tag (div-rat x y))))
+           (put 'make 'rational
+                (lambda (n d) (tag (make-rat n d))))
+           'done))
+
+(define (make-rational n d)
+  ((get 'make 'rational) n d))
+
+(define (install-complex-package)
+  (let* ((make-from-real-imag (lambda (x y)
+                                ((get 'make-from-real-imag 'rectangular) x y)))
+         (make-from-mag-ang (lambda (r a)
+                              ((get 'make-from-mag-ang 'polar) r a)))
+         (add-complex (lambda (z1 z2)
+                        (make-from-real-imag
+                         (+ (real-part z1) (real-part z2))
+                         (+ (imag-part z1) (imag-part z2)))))
+         (sub-complex (lambda (z1 z2)
+                        (make-from-real-imag
+                         (- (real-part z1) (real-part z2))
+                         (- (imag-part z1) (imag-part z2)))))
+         (mul-complex (lambda (z1 z2)
+                        (make-from-mag-ang
+                         (* (magnitude z1) (magnitude z2))
+                         (+ (angle z1) (angle z2)))))
+         (div-complex (lambda (z1 z2)
+                        (make-from-mag-ang
+                         (/ (magnitude z1) (magnitude z2))
+                         (- (angle z1) (angle z2)))))
+         (tag (lambda (z) (attach-tag 'complex z))))
+    (put 'add '(complex complex)
+         (lambda (z1 z2) (tag (add-complex z1 z2))))
+    (put 'sub '(complex complex)
+         (lambda (z1 z2) (tag (sub-complex z1 z2))))
+    (put 'mul '(complex complex)
+         (lambda (z1 z2) (tag (mul-complex z1 z2))))
+    (put 'div '(complex complex)
+         (lambda (z1 z2) (tag (div-complex z1 z2))))
+    (put 'real-part '(complex) real-part)
+    (put 'imag-part '(complex) imag-part)
+    (put 'magnitude '(complex) magnitude)
+    (put 'angle '(complex) angle)
+    (put 'make-from-real-imag 'complex
+         (lambda (x y) (tag (make-from-real-imag x y))))
+    (put 'make-from-mag-ang 'complex
+         (lambda (r a) (tag (make-from-mag-ang r a))))
+    'done))
+
+(define (make-complex-from-real-imag x y)
+  ((get 'make-from-real-imag 'complex) x y))
+
+(define (make-complex-from-mag-ang r a)
+  ((get 'make-from-mag-ang 'complex) r a))
+
+(define (install-rectangular-package)
+  (let* ((real-part (lambda (z) (car z)))
+         (imag-part (lambda (z) (cdr z)))
+         (make-from-real-imag (lambda (x y) (cons x y)))
+         (magnitude (lambda (z) (sqrt (+ (square (real-part z))
+                                         (square (imag-part z))))))
+         (angle (lambda (z) (atan (imag-part z) (real-part z))))
+         (make-from-mag-ang (lambda (r a) (cons (* r (cos a)) (* r (sin a)))))
+    (tag (lambda (x) (attach-tag 'rectangular x))))
+    (put 'real-part '(rectangular) real-part)
+    (put 'imag-part '(rectangular) imag-part)
+    (put 'magnitude '(rectangular) magnitude)
+    (put 'angle '(rectangular) angle)
+    (put 'make-from-real-imag 'rectangular
+         (lambda (x y) (tag (make-from-real-imag x y))))
+    (put 'make-from-mag-ang 'rectangular
+         (lambda (r a) (tag (make-from-mag-ang r a))))
+    'done))
+
+(define (install-polar-package)
+  (let* ((magnitude (lambda (z) (car z)))
+         (angle (lambda (z) (cdr z)))
+         (make-from-mag-ang (lambda (r a) (cons r a)))
+         (real-part (lambda (z) (* (magnitude z) (cos (angle z)))))
+         (imag-part (lambda (z) (* (magnitude z) (sin (angle z)))))
+         (make-from-real-imag (lambda (x y)
+                                (cons (sqrt (+ (square x) (square y)))
+                                      (atan y x))))
+    (tag (lambda (x) (attach-tag 'polar x))))
+    (put 'real-part '(polar) real-part)
+    (put 'imag-part '(polar) imag-part)
+    (put 'magnitude '(polar) magnitude)
+    (put 'angle '(polar) angle)
+    (put 'make-from-real-imag 'polar
+         (lambda (x y) (tag (make-from-real-imag x y))))
+    (put 'make-from-mag-ang 'polar
+         (lambda (r a) (tag (make-from-mag-ang r a))))
+    'done))
+
+(define (real-part z) (apply-generic 'real-part z))
+(define (imag-part z) (apply-generic 'imag-part z))
+(define (magnitude z) (apply-generic 'magnitude z))
+(define (angle z) (apply-generic 'angle z))
+
+;; ‹­§Œ^•ÏŠ· scheme-number->complex
+(define (scheme-number->complex n)
+  (make-complex-from-real-imag (contents n) 0))
+
+(put-coercion 'scheme-number 'complex scheme-number->complex)
+
+;; ‹­§Œ^•ÏŠ· scheme-number->scheme-number
+(define (scheme-number->scheme-number n) n)
+
+(put-coercion 'scheme-number 'scheme-number scheme-number->scheme-number)
+
+;; ‹­§Œ^•ÏŠ· complex->complex
+(define (complex->complex z) z)
+
+(put-coercion 'complex 'complex complex->complex)
+
+;; ‚×‚«æ‰‰ŽZ
+(define (exp x y) (apply-generic 'exp x y))
+
+;; (exp (make-complex-from-real-imag 3 0) (make-complex-from-real-imag 2 0))
+;; => apply-genericŠÖ”‚Å–³ŒÀƒ‹[ƒv‚É‚È‚éB
+
+;; b
+;; “¯‚¶Œ^‚Ìˆø”‚Ì‹­§Œ^•ÏŠ·‚É‚Â‚¢‚Ä‰½‚©‚·‚×‚«‚¾‚Æ‚¢‚¤Louis‚Í³‚µ‚­‚È‚¢B
+;; apply-genericŠÖ”‚Å“¯‚¶Œ^‚Ìˆø”‚Ì‹­§Œ^•ÏŠ·‚Í‚µ‚È‚¢‚æ‚¤‚É‚µ‚È‚¢‚Æ–³ŒÀƒ‹[ƒv‚É‚È‚Á‚Ä‚µ‚Ü‚¤B
+
+;; c
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+          (apply proc (map contents args))
+          (if (= (length args) 2)
+              (let ((type1 (car type-tags))
+                    (type2 (cadr type-tags))
+                    (a1 (car args))
+                    (a2 (cadr args)))
+                (if (equal? type1 type2)
+                    (error "No method for these types" (list op type-tags))
+                    (let ((t1->t2 (get-coercion type1 type2))
+                          (t2->t1 (get-coercion type2 type1)))
+                      (cond [t1->t2 (apply-generic op (t1->t2 a1) a2)]
+                            [t2->t1 (apply-generic op a1 (t2->t1 a2))]
+                            [else (error "No method for these types"
+                                         (list op type-tags))]))))
+              (error "No method for these types"
+                     (list op type-tags)))))))
