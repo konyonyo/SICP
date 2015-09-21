@@ -2475,3 +2475,42 @@
                                          (list op type-tags))]))))
               (error "No method for these types"
                      (list op type-tags)))))))
+
+;; 2.82
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+          (apply proc (map contents args))
+          (letrec* ((type-convert (lambda (type-tags type-to)
+                                   (cond [(null? type-tags) '()]
+                                         [(get-coercion (car type-tags)
+                                                        type-to)
+                                          (cons (get-coercion (car type-tags)
+                                                              type-to)
+                                                (type-convert (cdr type-tags)
+                                                              type-to))]
+                                         [else #f])))
+                    (type-convert-iter (lambda (type-tags type-tags-org)
+                                         (if (null? type-tags)
+                                             (error "No method for these types"
+                                                    (list op type-tags-org))
+                                             (let ((type-convert-result
+                                                    (type-convert
+                                                     type-tags-org
+                                                     (car type-tags))))
+                                               (if type-convert-result
+                                                   (apply apply-generic
+                                                          (cons op (apply-funcs-to-list type-convert-result args)))
+                                                   (type-convert-iter (cdr type-tags) type-tags-org))))))
+                    (apply-funcs-to-list (lambda (func-list list)
+                                           (if (null? list)
+                                               '()
+                                               (cons ((car func-list)
+                                                      (car list))
+                                                     (apply-funcs-to-list
+                                                      (cdr func-list)
+                                                      (cdr list)))))))
+                   (type-convert-iter type-tags type-tags))))))
+
+;; ó·Ç¶ÇŒå^(scheme-number complex)Ç»Ç«ÇÃàŸÇ»ÇÈå^ìØémÇÃââéZÇé¿çsÇ∑ÇÈÇ±Ç∆Ç™Ç≈Ç´Ç»Ç¢ÅB
