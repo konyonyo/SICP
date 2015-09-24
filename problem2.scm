@@ -3110,6 +3110,10 @@
 (define (imag-part z) (apply-generic 'imag-part z))
 (define (magnitude z) (apply-generic 'magnitude z))
 (define (angle z) (apply-generic 'angle z))
+(define (my-sqrt x) (apply-generic 'my-sqrt x))
+(define (my-atan x y) (apply-generic 'my-atan x y))
+(define (cosine x) (apply-generic 'cosine x))
+(define (sine x) (apply-generic 'sine x))
 
 ;;;;;;;;;;;;;
 ;; 数の生成 ;;
@@ -3117,8 +3121,8 @@
 (define (make-integer n)
   ((get 'make 'integer) n))
 
-(define (make-scheme-number n)
-  ((get 'make 'scheme-number) n))
+(define (make-real n)
+  ((get 'make 'real) n))
 
 (define (make-rational n d)
   ((get 'make 'rational) n d))
@@ -3188,21 +3192,19 @@
 
 ;; tagの付与
 (define (attach-tag type-tag contents)
-  (if (eq? type-tag 'scheme-number)
-      contents
-      (cons type-tag contents)))
+  (cons type-tag contents))
 
 ;; tagの取得
 (define (type-tag datum)
   (if (pair? datum)
       (car datum)
-      'scheme-number))
+      (error "Not pair -- TYPE-TAG" datum)))
 
 ;; contentsの取得
 (define (contents datum)
   (if (pair? datum)
       (cdr datum)
-      datum))
+      (error "Not pair -- CONTENTS" datum)))
 
 ;;;;;;;;;;;;;;
 ;; パッケージ ;;
@@ -3218,6 +3220,14 @@
          (lambda (x y) (tag (* x y))))
     (put 'div '(integer integer)
          (lambda (x y) (tag (quotient x y))))
+    (put 'my-sqrt '(integer)
+         (lambda (x) (make-real (sqrt x))))
+    (put 'my-atan '(integer integer)
+         (lambda (x y) (make-real (atan x y))))
+    (put 'cosine '(integer)
+         (lambda (x) (make-real (cos x))))
+    (put 'sine '(integer)
+         (lambda (x) (make-real (sin x))))
     (put 'equ? '(integer integer)
          (lambda (x y) (= x y)))
     (put 'make 'integer
@@ -3262,36 +3272,57 @@
                 (lambda (x y) (tag (mul-rat x y))))
            (put 'div '(rational rational)
                 (lambda (x y) (tag (div-rat x y))))
+           (put 'my-sqrt '(rational)
+                (lambda (x) (make-real (sqrt (/ (numer x) (denom x))))))
+           (put 'my-atan '(rational rational)
+                (lambda (x y) (make-real
+                               (atan (/ (numer x) (denom x))
+                                     (/ (numer y) (denom y))))))
+           (put 'cosine '(rational)
+                (lambda (x) (make-real
+                             (cos (/ (numer x) (denom x))))))
+           (put 'sine '(rational)
+                (lambda (x) (make-real
+                             (sin (/ (numer x) (denom x))))))
            (put 'equ? '(rational rational)
                 (lambda (x y) (= (/ (numer x) (denom x))
                                  (/ (numer y) (denom y)))))
            (put 'make 'rational
                 (lambda (n d) (tag (make-rat n d))))
            (put 'raise '(rational)
-                (lambda (x) (make-scheme-number (/ (numer x) (denom x)))))
+                (lambda (x) (make-real (/ (numer x) (denom x)))))
            (put 'project '(rational)
                 (lambda (x) (make-integer (numer x))))
            'done))
 
 ;; 実数パッケージ
-(define (install-scheme-number-package)
-  (let ((tag (lambda (x) (attach-tag 'scheme-number x))))
-    (put 'add '(scheme-number scheme-number)
+(define (install-real-package)
+  (let ((tag (lambda (x) (attach-tag 'real x))))
+    (put 'add '(real real)
          (lambda (x y) (tag (+ x y))))
-    (put 'sub '(scheme-number scheme-number)
+    (put 'sub '(real real)
          (lambda (x y) (tag (- x y))))
-    (put 'mul '(scheme-number scheme-number)
+    (put 'mul '(real real)
          (lambda (x y) (tag (* x y))))
-    (put 'div '(scheme-number scheme-number)
+    (put 'div '(real real)
          (lambda (x y) (tag (/ x y))))
-    (put 'equ? '(scheme-number scheme-number)
+    (put 'my-sqrt '(real)
+         (lambda (x) (tag (sqrt x))))
+    (put 'my-atan '(real real)
+         (lambda (x y) (tag (atan x y))))
+    (put 'cosine '(real)
+         (lambda (x) (tag (cos x))))
+    (put 'sine '(real)
+         (lambda (x) (tag (sin x))))
+    (put 'equ? '(real real)
          (lambda (x y) (= x y)))
-    (put 'make 'scheme-number
+    (put 'make 'real
          (lambda (x) (tag x)))
-    (put 'raise '(scheme-number)
-         (lambda (x) (make-complex-from-real-imag x 0)))
-    (put 'project '(scheme-number)
-         (lambda (x) (make-rational (floor x) 1)))
+    (put 'raise '(real)
+         (lambda (x) (make-complex-from-real-imag
+                      (make-real x) (make-real 0))))
+    (put 'project '(real)
+         (lambda (x)(make-rational (floor x) 1)))
     'done))
 
 ;; 複素数パッケージ
@@ -3333,7 +3364,7 @@
     (put 'magnitude '(complex) magnitude)
     (put 'angle '(complex) angle)
     (put 'project '(complex)
-         (lambda (z) (make-scheme-number (contents (drop (real-part z))))))
+         (lambda (z) (real-part z)))
     (put 'make-from-real-imag 'complex
          (lambda (x y) (tag (make-from-real-imag x y))))
     (put 'make-from-mag-ang 'complex
@@ -3345,11 +3376,12 @@
   (let* ((real-part (lambda (z) (car z)))
          (imag-part (lambda (z) (cdr z)))
          (make-from-real-imag (lambda (x y) (cons x y)))
-         (magnitude (lambda (z) (sqrt (+ (square (real-part z))
-                                         (square (imag-part z))))))
-         (angle (lambda (z) (atan (imag-part z) (real-part z))))
-         (make-from-mag-ang (lambda (r a) (cons (* r (cos a)) (* r (sin a)))))
-    (tag (lambda (x) (attach-tag 'rectangular x))))
+         (magnitude (lambda (z) (my-sqrt (add (mul (real-part z) (real-part z))
+                                              (mul (imag-part z) (imag-part z))))))
+         (angle (lambda (z) (my-atan (imag-part z) (real-part z))))
+         (make-from-mag-ang (lambda (r a) (cons (mul r (cosine a))
+                                                (mul r (sine a)))))
+         (tag (lambda (x) (attach-tag 'rectangular x))))
     (put 'real-part '(rectangular) real-part)
     (put 'imag-part '(rectangular) imag-part)
     (put 'magnitude '(rectangular) magnitude)
@@ -3365,12 +3397,12 @@
   (let* ((magnitude (lambda (z) (car z)))
          (angle (lambda (z) (cdr z)))
          (make-from-mag-ang (lambda (r a) (cons r a)))
-         (real-part (lambda (z) (* (magnitude z) (cos (angle z)))))
-         (imag-part (lambda (z) (* (magnitude z) (sin (angle z)))))
+         (real-part (lambda (z) (mul (magnitude z) (cosine (angle z)))))
+         (imag-part (lambda (z) (mul (magnitude z) (sine (angle z)))))
          (make-from-real-imag (lambda (x y)
-                                (cons (sqrt (+ (square x) (square y)))
-                                      (atan y x))))
-    (tag (lambda (x) (attach-tag 'polar x))))
+                                (cons (my-sqrt (add (mul x x) (mul y y)))
+                                      (my-atan y x))))
+         (tag (lambda (x) (attach-tag 'polar x))))
     (put 'real-part '(polar) real-part)
     (put 'imag-part '(polar) imag-part)
     (put 'magnitude '(polar) magnitude)
