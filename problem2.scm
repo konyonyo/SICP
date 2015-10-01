@@ -3412,3 +3412,401 @@
     (put 'make-from-mag-ang 'polar
          (lambda (r a) (tag (make-from-mag-ang r a))))
     'done))
+
+;; 2.87
+;;;;;;;;;;;;;
+;; 汎用演算 ;;
+;;;;;;;;;;;;;
+(define (equ? x y) (apply-generic 'equ? x y))
+(define (project x) (apply-generic 'project x))
+(define (raise x) (apply-generic 'raise x))
+(define (add x y) (apply-generic 'add x y))
+(define (sub x y) (apply-generic 'sub x y))
+(define (mul x y) (apply-generic 'mul x y))
+(define (div x y) (apply-generic 'div x y))
+(define (real-part z) (apply-generic 'real-part z))
+(define (imag-part z) (apply-generic 'imag-part z))
+(define (magnitude z) (apply-generic 'magnitude z))
+(define (angle z) (apply-generic 'angle z))
+(define (my-sqrt x) (apply-generic 'my-sqrt x))
+(define (my-atan x y) (apply-generic 'my-atan x y))
+(define (cosine x) (apply-generic 'cosine x))
+(define (sine x) (apply-generic 'sine x))
+
+;;;;;;;;;;;;;
+;; 数の生成 ;;
+;;;;;;;;;;;;;
+(define (make-integer n)
+  ((get 'make 'integer) n))
+
+(define (make-real n)
+  ((get 'make 'real) n))
+
+(define (make-rational n d)
+  ((get 'make 'rational) n d))
+
+(define (make-complex-from-real-imag x y)
+  ((get 'make-from-real-imag 'complex) x y))
+
+(define (make-complex-from-mag-ang r a)
+  ((get 'make-from-mag-ang 'complex) r a))
+
+(define (make-polynomial var terms)
+  ((get 'make 'polynomial) var terms))
+
+;;;;;;;;;;;;;;;;;;;
+;; apply-generic ;;
+;;;;;;;;;;;;;;;;;;;
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+          (if (or (eq? op 'project) (eq? op 'raise) (eq? op 'equ?))
+              (apply proc (map contents args))
+              (drop (apply proc (map contents args))))
+          (if (= (length args) 2)
+              (let ((a1 (car args))
+                    (a2 (cadr args)))
+                (cond [(> (type-height a1) (type-height a2))
+                       (apply-generic op (raise a1) a2)]
+                      [(< (type-height a1) (type-height a2))
+                       (apply-generic op a1 (raise a2))]
+                      [else (error "No method for these types"
+                                   (list op type-tags))]))
+              (error "No method for these types"
+                     (list op type-tags)))))))
+
+;;;;;;;;;;;;;;
+;; table操作 ;;
+;;;;;;;;;;;;;;
+(define table '())
+
+(define (put func type contents)
+  (set! table (cons (list func type contents) table)))
+
+(define (get func type)
+  (letrec ((get-sub (lambda (func type table)
+                      (cond [(null? table) #f]
+                            [(and (equal? func (caar table))
+                                  (equal? type (cadar table)))
+                             (caddar table)]
+                            [else (get-sub func type (cdr table))]))))
+    (get-sub func type table)))
+
+;;;;;;;;;;;;;;;;
+;; その他の関数 ;;
+;;;;;;;;;;;;;;;;
+;; drop演算
+(define (drop x)
+  (let ((projected (project x)))
+    (if (equ? x (raise projected))
+        (if (eq? (type-tag projected) 'integer)
+            projected
+            (drop projected))
+        x)))
+
+;; 型の塔における高さ
+(define (type-height x)
+  (if (eq? (type-tag x) 'complex)
+      0
+      (+ 1 (type-height (raise x)))))
+
+;; tagの付与
+(define (attach-tag type-tag contents)
+  (cons type-tag contents))
+
+;; tagの取得
+(define (type-tag datum)
+  (if (pair? datum)
+      (car datum)
+      (error "Not pair -- TYPE-TAG" datum)))
+
+;; contentsの取得
+(define (contents datum)
+  (if (pair? datum)
+      (cdr datum)
+      (error "Not pair -- CONTENTS" datum)))
+
+;;;;;;;;;;;;;;
+;; パッケージ ;;
+;;;;;;;;;;;;;;
+;; 整数パッケージ
+(define (install-integer-package)
+  (let ((tag (lambda (x) (attach-tag 'integer x))))
+    (put 'add '(integer integer)
+         (lambda (x y) (tag (+ x y))))
+    (put 'sub '(integer integer)
+         (lambda (x y) (tag (- x y))))
+    (put 'mul '(integer integer)
+         (lambda (x y) (tag (* x y))))
+    (put 'div '(integer integer)
+         (lambda (x y) (tag (quotient x y))))
+    (put 'my-sqrt '(integer)
+         (lambda (x) (make-real (sqrt x))))
+    (put 'my-atan '(integer integer)
+         (lambda (x y) (make-real (atan x y))))
+    (put 'cosine '(integer)
+         (lambda (x) (make-real (cos x))))
+    (put 'sine '(integer)
+         (lambda (x) (make-real (sin x))))
+    (put 'equ? '(integer integer)
+         (lambda (x y) (= x y)))
+    (put 'make 'integer
+         (lambda (x) (tag (floor x))))
+    (put 'project '(integer)
+         (lambda (x) (tag x)))
+    (put 'raise '(integer)
+         (lambda (x) (make-rational x 1)))
+    'done))
+
+;; 有理数パッケージ
+(define (install-rational-package)
+  (letrec* ((numer (lambda (x) (car x)))
+            (denom (lambda (x) (cdr x)))
+            (make-rat (lambda (n d)
+                        (let ((g (gcd n d)))
+                          (cons (/ n g) (/ d g)))))
+            (gcd (lambda (a b)
+                   (if (zero? b)
+                       a
+                       (gcd b (remainder a b)))))
+            (add-rat (lambda (x y)
+                       (make-rat (+ (* (numer x) (denom y))
+                                    (* (numer y) (denom x)))
+                                 (* (denom x) (denom y)))))
+            (sub-rat (lambda (x y)
+                       (make-rat (- (* (numer x) (denom y))
+                                    (* (numer y) (denom x)))
+                                 (* (denom x) (denom y)))))
+            (mul-rat (lambda (x y)
+                       (make-rat (* (numer x) (numer y))
+                                 (* (denom x) (denom y)))))
+            (div-rat (lambda (x y)
+                       (make-rat (* (numer x) (denom y))
+                                 (* (denom x) (numer y)))))
+            (tag (lambda (x) (attach-tag 'rational x))))
+           (put 'add '(rational rational)
+                (lambda (x y) (tag (add-rat x y))))
+           (put 'sub '(rational rational)
+                (lambda (x y) (tag (sub-rat x y))))
+           (put 'mul '(rational rational)
+                (lambda (x y) (tag (mul-rat x y))))
+           (put 'div '(rational rational)
+                (lambda (x y) (tag (div-rat x y))))
+           (put 'my-sqrt '(rational)
+                (lambda (x) (make-real (sqrt (/ (numer x) (denom x))))))
+           (put 'my-atan '(rational rational)
+                (lambda (x y) (make-real
+                               (atan (/ (numer x) (denom x))
+                                     (/ (numer y) (denom y))))))
+           (put 'cosine '(rational)
+                (lambda (x) (make-real
+                             (cos (/ (numer x) (denom x))))))
+           (put 'sine '(rational)
+                (lambda (x) (make-real
+                             (sin (/ (numer x) (denom x))))))
+           (put 'equ? '(rational rational)
+                (lambda (x y) (= (/ (numer x) (denom x))
+                                 (/ (numer y) (denom y)))))
+           (put 'make 'rational
+                (lambda (n d) (tag (make-rat n d))))
+           (put 'raise '(rational)
+                (lambda (x) (make-real (/ (numer x) (denom x)))))
+           (put 'project '(rational)
+                (lambda (x) (make-integer (numer x))))
+           'done))
+
+;; 実数パッケージ
+(define (install-real-package)
+  (let ((tag (lambda (x) (attach-tag 'real x))))
+    (put 'add '(real real)
+         (lambda (x y) (tag (+ x y))))
+    (put 'sub '(real real)
+         (lambda (x y) (tag (- x y))))
+    (put 'mul '(real real)
+         (lambda (x y) (tag (* x y))))
+    (put 'div '(real real)
+         (lambda (x y) (tag (/ x y))))
+    (put 'my-sqrt '(real)
+         (lambda (x) (tag (sqrt x))))
+    (put 'my-atan '(real real)
+         (lambda (x y) (tag (atan x y))))
+    (put 'cosine '(real)
+         (lambda (x) (tag (cos x))))
+    (put 'sine '(real)
+         (lambda (x) (tag (sin x))))
+    (put 'equ? '(real real)
+         (lambda (x y) (= x y)))
+    (put 'make 'real
+         (lambda (x) (tag x)))
+    (put 'raise '(real)
+         (lambda (x) (make-complex-from-real-imag
+                      (make-real x) (make-real 0))))
+    (put 'project '(real)
+         (lambda (x)(make-rational (floor x) 1)))
+    'done))
+
+;; 複素数パッケージ
+(define (install-complex-package)
+  (let* ((make-from-real-imag (lambda (x y)
+                                ((get 'make-from-real-imag 'rectangular) x y)))
+         (make-from-mag-ang (lambda (r a)
+                              ((get 'make-from-mag-ang 'polar) r a)))
+         (add-complex (lambda (z1 z2)
+                        (make-from-real-imag
+                         (add (real-part z1) (real-part z2))
+                         (add (imag-part z1) (imag-part z2)))))
+         (sub-complex (lambda (z1 z2)
+                        (make-from-real-imag
+                         (sub (real-part z1) (real-part z2))
+                         (sub (imag-part z1) (imag-part z2)))))
+         (mul-complex (lambda (z1 z2)
+                        (make-from-mag-ang
+                         (mul (magnitude z1) (magnitude z2))
+                         (add (angle z1) (angle z2)))))
+         (div-complex (lambda (z1 z2)
+                        (make-from-mag-ang
+                         (div (magnitude z1) (magnitude z2))
+                         (sub (angle z1) (angle z2)))))
+         (tag (lambda (z) (attach-tag 'complex z))))
+    (put 'add '(complex complex)
+         (lambda (z1 z2) (tag (add-complex z1 z2))))
+    (put 'sub '(complex complex)
+         (lambda (z1 z2) (tag (sub-complex z1 z2))))
+    (put 'mul '(complex complex)
+         (lambda (z1 z2) (tag (mul-complex z1 z2))))
+    (put 'div '(complex complex)
+         (lambda (z1 z2) (tag (div-complex z1 z2))))
+    (put 'equ? '(complex complex)
+         (lambda (z1 z2) (and (equ? (real-part z1) (real-part z2))
+                              (equ? (imag-part z1) (imag-part z2)))))
+    (put 'real-part '(complex) real-part)
+    (put 'imag-part '(complex) imag-part)
+    (put 'magnitude '(complex) magnitude)
+    (put 'angle '(complex) angle)
+    (put 'project '(complex)
+         (lambda (z) (real-part z)))
+    (put 'make-from-real-imag 'complex
+         (lambda (x y) (tag (make-from-real-imag x y))))
+    (put 'make-from-mag-ang 'complex
+         (lambda (r a) (tag (make-from-mag-ang r a))))
+    'done))
+
+;; 直交座標パッケージ
+(define (install-rectangular-package)
+  (let* ((real-part (lambda (z) (car z)))
+         (imag-part (lambda (z) (cdr z)))
+         (make-from-real-imag (lambda (x y) (cons x y)))
+         (magnitude (lambda (z) (my-sqrt (add (mul (real-part z) (real-part z))
+                                              (mul (imag-part z) (imag-part z))))))
+         (angle (lambda (z) (my-atan (imag-part z) (real-part z))))
+         (make-from-mag-ang (lambda (r a) (cons (mul r (cosine a))
+                                                (mul r (sine a)))))
+         (tag (lambda (x) (attach-tag 'rectangular x))))
+    (put 'real-part '(rectangular) real-part)
+    (put 'imag-part '(rectangular) imag-part)
+    (put 'magnitude '(rectangular) magnitude)
+    (put 'angle '(rectangular) angle)
+    (put 'make-from-real-imag 'rectangular
+         (lambda (x y) (tag (make-from-real-imag x y))))
+    (put 'make-from-mag-ang 'rectangular
+         (lambda (r a) (tag (make-from-mag-ang r a))))
+    'done))
+
+;; 極座標パッケージ
+(define (install-polar-package)
+  (let* ((magnitude (lambda (z) (car z)))
+         (angle (lambda (z) (cdr z)))
+         (make-from-mag-ang (lambda (r a) (cons r a)))
+         (real-part (lambda (z) (mul (magnitude z) (cosine (angle z)))))
+         (imag-part (lambda (z) (mul (magnitude z) (sine (angle z)))))
+         (make-from-real-imag (lambda (x y)
+                                (cons (my-sqrt (add (mul x x) (mul y y)))
+                                      (my-atan y x))))
+         (tag (lambda (x) (attach-tag 'polar x))))
+    (put 'real-part '(polar) real-part)
+    (put 'imag-part '(polar) imag-part)
+    (put 'magnitude '(polar) magnitude)
+    (put 'angle '(polar) angle)
+    (put 'make-from-real-imag 'polar
+         (lambda (x y) (tag (make-from-real-imag x y))))
+    (put 'make-from-mag-ang 'polar
+         (lambda (r a) (tag (make-from-mag-ang r a))))
+    'done))
+
+;; 多項式パッケージ
+(define (install-polynomial-package)
+  (let* ((make-poly (lambda (variable term-list)
+                      (cons variable term-list)))
+         (variable (lambda (p) (car p)))
+         (term-list (lambda (p) (cdr p)))
+         (variable? (lambda (x) (symbol? x)))
+         (same-variable? (lambda (v1 v2)
+                           (and (variable? v1) (variable? v2) (eq? v1 v2))))
+         (adjoin-term (lambda (term term-list)
+                        (if (=zero? (coeff term))
+                            term-list
+                            (cons term term-list))))
+         (first-term (lambda (term-list) (car term-list)))
+         (rest-terms (lambda (term-list) (cdr term-list)))
+         (the-empty-termlist (lambda (x) '()))
+         (empty-termlist? (lambda (term-list) (null? term-list)))
+         (make-term (lambda (order coeff) (list order coeff)))
+         (order (lambda (term) (car term)))
+         (coeff (lambda (term) (cadr term)))
+         (add-terms (lambda (L1 L2)
+                      (cond [(empty-termlist? L1) L2]
+                            [(empty-termlist? L2) L1]
+                            [else
+                             (let ((t1 (first-term L1))
+                                   (t2 (first-term L2)))
+                               (cond [(> (order t1) (order t2))
+                                      (adjoin-term t1
+                                                   (add-terms (rest-terms L1) L2))]
+                                     [(< (order t1) (order t2))
+                                      (adjoin-term t2
+                                                   (add-terms L1 (rest-terms L2)))]
+                                     [else
+                                      (adjoin-term
+                                      (make-term (order t1)
+                                                 (add (coeff t1) (coeff t2)))
+                                      (add-terms (rest-terms t1)
+                                                 (rest-terms t2)))]))])))
+         (mul-terms (lambda (L1 L2)
+                      (if (empty-termlist? L1)
+                          (the-empty-termlist)
+                          (add-terms (mul-term-by-all-terms (first-term L1) L2)
+                                     (mul-terms (rest-terms L1) L2)))))
+         (mul-term-by-all-terms (lambda (t1 L)
+                                  (if (empty-termlist? L)
+                                      (the-empty-termlist)
+                                      (let ((t2 (first-term L)))
+                                        (adjoin-term
+                                         (make-term (+ (order t1) (order t2))
+                                                    (mul (coeff t1) (coeff t2)))
+                                         (mul-term-by-all-terms t1 (rest-terms L)))))))
+         (add-poly (lambda (p1 p2)
+                     (if (same-variable? (variable p1) (variable p2))
+                         (make-poly (variable p1)
+                                    (add-terms (term-list p1)
+                                               (term-list p2)))
+                         (error "Polys not in same var -- ADD-POLY"
+                                (list p1 p2)))))
+         (mul-poly (lambda (p1 p2)
+                     (if (same-variable? (variable p1) (variable p2))
+                         (make-poly (variable p1)
+                                    (mul-terms (term-list p1)
+                                               (term-list p2)))
+                         (error "Polys not in same var -- MUL-POLY"
+                                (list p1 p2)))))
+         (tag (lambda (p) (attach-tag 'polynomial p))))
+    (put 'add '(polynomial polynomial)
+         (lambda (p1 p2) (tag (add-poly p1 p2))))
+    (put 'mul '(polynomial polynomial)
+         (lambda (p1 p2) (tag (mul-poly p1 p2))))
+    (put 'make 'polynomial
+         (lambda (var terms) (tag (mke-poly var terms))))
+    'done))
+
+;; 多項式の強制型変換を書く必要あり
+;; =zero?を定義する必要あり
