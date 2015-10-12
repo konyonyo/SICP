@@ -3432,6 +3432,7 @@
 (define (my-atan x y) (apply-generic 'my-atan x y))
 (define (cosine x) (apply-generic 'cosine x))
 (define (sine x) (apply-generic 'sine x))
+(define (=zero? x) (apply-generic '=zero? x))
 
 ;;;;;;;;;;;;;
 ;; 数の生成 ;;
@@ -3461,10 +3462,10 @@
   (let ((type-tags (map type-tag args)))
     (let ((proc (get op type-tags)))
       (if proc
-          (if (or (eq? op 'project) (eq? op 'raise) (eq? op 'equ?))
-              (apply proc (map contents args))
+          (if (or (eq? #?=op 'project) (eq? op 'raise) (eq? op 'equ?) (eq? op '=zero?))
+              (apply proc (map contents #?=args))
               (drop (apply proc (map contents args))))
-          (if (= (length args) 2)
+          (if (= #?=(length args) 2)
               (let ((a1 (car args))
                     (a2 (cadr args)))
                 (cond [(> (type-height a1) (type-height a2))
@@ -3507,7 +3508,7 @@
 
 ;; 型の塔における高さ
 (define (type-height x)
-  (if (eq? (type-tag x) 'complex)
+  (if (eq? (type-tag x) 'polynomial)
       0
       (+ 1 (type-height (raise x)))))
 
@@ -3533,6 +3534,8 @@
 ;; 整数パッケージ
 (define (install-integer-package)
   (let ((tag (lambda (x) (attach-tag 'integer x))))
+    (put '=zero? '(integer)
+         (lambda (x) (= x 0)))
     (put 'add '(integer integer)
          (lambda (x y) (tag (+ x y))))
     (put 'sub '(integer integer)
@@ -3585,6 +3588,8 @@
                        (make-rat (* (numer x) (denom y))
                                  (* (denom x) (numer y)))))
             (tag (lambda (x) (attach-tag 'rational x))))
+           (put '=zero? '(rational)
+                (lambda (x) (= (numer x) 0)))
            (put 'add '(rational rational)
                 (lambda (x y) (tag (add-rat x y))))
            (put 'sub '(rational rational)
@@ -3619,6 +3624,8 @@
 ;; 実数パッケージ
 (define (install-real-package)
   (let ((tag (lambda (x) (attach-tag 'real x))))
+    (put '=zero? '(real)
+         (lambda (x) (= x 0)))
     (put 'add '(real real)
          (lambda (x y) (tag (+ x y))))
     (put 'sub '(real real)
@@ -3669,6 +3676,8 @@
                          (div (magnitude z1) (magnitude z2))
                          (sub (angle z1) (angle z2)))))
          (tag (lambda (z) (attach-tag 'complex z))))
+    (put '=zero? '(complex)
+         (lambda (z) (and (= (real-part z) 0) (= (imag-part z) 0))))
     (put 'add '(complex complex)
          (lambda (z1 z2) (tag (add-complex z1 z2))))
     (put 'sub '(complex complex)
@@ -3686,6 +3695,8 @@
     (put 'angle '(complex) angle)
     (put 'project '(complex)
          (lambda (z) (real-part z)))
+    (put 'raise '(complex)
+         (lambda (z) (make-polynomial 'x (list (list 0 (tag z))))))
     (put 'make-from-real-imag 'complex
          (lambda (x y) (tag (make-from-real-imag x y))))
     (put 'make-from-mag-ang 'complex
@@ -3736,77 +3747,94 @@
 
 ;; 多項式パッケージ
 (define (install-polynomial-package)
-  (let* ((make-poly (lambda (variable term-list)
-                      (cons variable term-list)))
-         (variable (lambda (p) (car p)))
-         (term-list (lambda (p) (cdr p)))
-         (variable? (lambda (x) (symbol? x)))
-         (same-variable? (lambda (v1 v2)
-                           (and (variable? v1) (variable? v2) (eq? v1 v2))))
-         (adjoin-term (lambda (term term-list)
-                        (if (=zero? (coeff term))
-                            term-list
-                            (cons term term-list))))
-         (first-term (lambda (term-list) (car term-list)))
-         (rest-terms (lambda (term-list) (cdr term-list)))
-         (the-empty-termlist (lambda (x) '()))
-         (empty-termlist? (lambda (term-list) (null? term-list)))
-         (make-term (lambda (order coeff) (list order coeff)))
-         (order (lambda (term) (car term)))
-         (coeff (lambda (term) (cadr term)))
-         (add-terms (lambda (L1 L2)
-                      (cond [(empty-termlist? L1) L2]
-                            [(empty-termlist? L2) L1]
-                            [else
-                             (let ((t1 (first-term L1))
-                                   (t2 (first-term L2)))
-                               (cond [(> (order t1) (order t2))
-                                      (adjoin-term t1
-                                                   (add-terms (rest-terms L1) L2))]
-                                     [(< (order t1) (order t2))
-                                      (adjoin-term t2
-                                                   (add-terms L1 (rest-terms L2)))]
-                                     [else
-                                      (adjoin-term
-                                      (make-term (order t1)
-                                                 (add (coeff t1) (coeff t2)))
-                                      (add-terms (rest-terms t1)
-                                                 (rest-terms t2)))]))])))
-         (mul-terms (lambda (L1 L2)
-                      (if (empty-termlist? L1)
-                          (the-empty-termlist)
-                          (add-terms (mul-term-by-all-terms (first-term L1) L2)
-                                     (mul-terms (rest-terms L1) L2)))))
-         (mul-term-by-all-terms (lambda (t1 L)
-                                  (if (empty-termlist? L)
-                                      (the-empty-termlist)
-                                      (let ((t2 (first-term L)))
-                                        (adjoin-term
-                                         (make-term (+ (order t1) (order t2))
-                                                    (mul (coeff t1) (coeff t2)))
-                                         (mul-term-by-all-terms t1 (rest-terms L)))))))
-         (add-poly (lambda (p1 p2)
-                     (if (same-variable? (variable p1) (variable p2))
-                         (make-poly (variable p1)
-                                    (add-terms (term-list p1)
-                                               (term-list p2)))
-                         (error "Polys not in same var -- ADD-POLY"
-                                (list p1 p2)))))
-         (mul-poly (lambda (p1 p2)
-                     (if (same-variable? (variable p1) (variable p2))
-                         (make-poly (variable p1)
-                                    (mul-terms (term-list p1)
-                                               (term-list p2)))
-                         (error "Polys not in same var -- MUL-POLY"
-                                (list p1 p2)))))
-         (tag (lambda (p) (attach-tag 'polynomial p))))
-    (put 'add '(polynomial polynomial)
-         (lambda (p1 p2) (tag (add-poly p1 p2))))
-    (put 'mul '(polynomial polynomial)
-         (lambda (p1 p2) (tag (mul-poly p1 p2))))
-    (put 'make 'polynomial
-         (lambda (var terms) (tag (mke-poly var terms))))
-    'done))
+  (letrec* ((make-poly (lambda (variable term-list)
+                         (cons variable term-list)))
+            (variable (lambda (p) (car p)))
+            (term-list (lambda (p) (cdr p)))
+            (variable? (lambda (x) (symbol? x)))
+            (same-variable? (lambda (v1 v2)
+                              (and (variable? v1) (variable? v2) (eq? v1 v2))))
+            (adjoin-term (lambda (term term-list)
+                           (if (=zero? (coeff term))
+                               term-list
+                               (cons term term-list))))
+            (first-term (lambda (term-list) (car term-list)))
+            (rest-terms (lambda (term-list) (cdr term-list)))
+            (the-empty-termlist (lambda () '()))
+            (empty-termlist? (lambda (term-list) (null? term-list)))
+            (make-term (lambda (order coeff) (list order coeff)))
+            (order (lambda (term) (car term)))
+            (coeff (lambda (term) (cadr term)))
+            (eq-termlist (lambda (tl1 tl2)
+                           (cond [(empty-termlist? tl1) (empty-termlist? tl2)]
+                                 [(empty-termlist? tl2) (empty-termlist? tl1)]
+                                 [(and (= (order (first-term tl1))
+                                          (order (first-term tl2)))
+                                       (= (coeff (first-term tl1))
+                                          (coeff (first-term tl2))))
+                                  (eq-termlist (rest-terms tl1)
+                                               (rest-terms tl2))]
+                                 [else #f])))
+            (add-terms (lambda (L1 L2)
+                         (cond [(empty-termlist? #?=L1) L2]
+                               [(empty-termlist? #?=L2) L1]
+                               [else
+                                (let ((t1 (first-term L1))
+                                      (t2 (first-term L2)))
+                                  (cond [(> (order #?=t1) (order #?=t2))
+                                         (adjoin-term t1
+                                                      (add-terms (rest-terms L1) L2))]
+                                        [(< (order t1) (order t2))
+                                         (adjoin-term t2
+                                                      (add-terms L1 (rest-terms L2)))]
+                                        [else
+                                         (adjoin-term
+                                          (make-term (order t1)
+                                                     (add (coeff t1) (coeff t2)))
+                                          (add-terms (rest-terms L1)
+                                                     (rest-terms L2)))]))])))
+            (mul-terms (lambda (L1 L2)
+                         (if (empty-termlist? L1)
+                             (the-empty-termlist)
+                             (add-terms (mul-term-by-all-terms (first-term L1) L2)
+                                        (mul-terms (rest-terms L1) L2)))))
+            (mul-term-by-all-terms (lambda (t1 L)
+                                     (if (empty-termlist? L)
+                                         (the-empty-termlist)
+                                         (let ((t2 (first-term L)))
+                                           (adjoin-term
+                                            (make-term (+ (order t1) (order t2))
+                                                       (mul (coeff t1) (coeff t2)))
+                                            (mul-term-by-all-terms t1 (rest-terms L)))))))
+            (add-poly (lambda (p1 p2)
+                        (if (same-variable? (variable #?=p1) (variable #?=p2))
+                            (make-poly (variable p1)
+                                       (add-terms (term-list p1)
+                                                  (term-list p2)))
+                            (error "Polys not in same var -- ADD-POLY"
+                                   (list p1 p2)))))
+            (mul-poly (lambda (p1 p2)
+                        (if (same-variable? (variable p1) (variable p2))
+                            (make-poly (variable p1)
+                                       (mul-terms (term-list p1)
+                                                  (term-list p2)))
+                            (error "Polys not in same var -- MUL-POLY"
+                                   (list p1 p2)))))
+            (tag (lambda (p) (attach-tag 'polynomial p))))
+           (put '=zero? '(polynomial)
+                (lambda (p) (empty-termlist? p)))
+           (put 'equ? '(polynomial polynomial)
+                (lambda (p1 p2) (and (eq? (variable p1) (variable p2))
+                                     (eq-termlist (term-list p1) (term-list p2)))))
+           (put 'add '(polynomial polynomial)
+                (lambda (p1 p2) (tag (add-poly p1 p2))))
+           (put 'mul '(polynomial polynomial)
+                (lambda (p1 p2) (tag (mul-poly p1 p2))))
+           (put 'project '(polynomial)
+                (lambda (p) (coeff (first-term (term-list p)))))
+           (put 'make 'polynomial
+                (lambda (var terms) (tag (make-poly var terms))))
+           'done))
 
 ;; 多項式の強制型変換を書く必要あり
 ;; =zero?を定義する必要あり
