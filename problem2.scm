@@ -3463,9 +3463,9 @@
     (let ((proc (get op type-tags)))
       (if proc
           (if (or (eq? #?=op 'project) (eq? op 'raise) (eq? op 'equ?) (eq? op '=zero?))
-              (apply proc (map contents #?=args))
+              (apply proc (map contents args))
               (drop (apply proc (map contents args))))
-          (if (= #?=(length args) 2)
+          (if (= (length args) 2)
               (let ((a1 (car args))
                     (a2 (cadr args)))
                 (cond [(> (type-height a1) (type-height a2))
@@ -3776,12 +3776,12 @@
                                                (rest-terms tl2))]
                                  [else #f])))
             (add-terms (lambda (L1 L2)
-                         (cond [(empty-termlist? #?=L1) L2]
-                               [(empty-termlist? #?=L2) L1]
+                         (cond [(empty-termlist? L1) L2]
+                               [(empty-termlist? L2) L1]
                                [else
                                 (let ((t1 (first-term L1))
                                       (t2 (first-term L2)))
-                                  (cond [(> (order #?=t1) (order #?=t2))
+                                  (cond [(> (order t1) (order t2))
                                          (adjoin-term t1
                                                       (add-terms (rest-terms L1) L2))]
                                         [(< (order t1) (order t2))
@@ -3807,7 +3807,7 @@
                                                        (mul (coeff t1) (coeff t2)))
                                             (mul-term-by-all-terms t1 (rest-terms L)))))))
             (add-poly (lambda (p1 p2)
-                        (if (same-variable? (variable #?=p1) (variable #?=p2))
+                        (if (same-variable? (variable p1) (variable p2))
                             (make-poly (variable p1)
                                        (add-terms (term-list p1)
                                                   (term-list p2)))
@@ -3831,10 +3831,7 @@
            (put 'mul '(polynomial polynomial)
                 (lambda (p1 p2) (tag (mul-poly p1 p2))))
            (put 'project '(polynomial)
-                (lambda (p) (coeff (first-term (term-list p)))))
-           (put 'make 'polynomial
+                (lambda (p) (make-integer (order (first-term (term-list p))))))
+            (put 'make 'polynomial
                 (lambda (var terms) (tag (make-poly var terms))))
            'done))
-
-;; 多項式の強制型変換を書く必要あり
-;; =zero?を定義する必要あり
