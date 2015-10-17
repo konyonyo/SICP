@@ -3413,7 +3413,7 @@
          (lambda (r a) (tag (make-from-mag-ang r a))))
     'done))
 
-;; 2.87
+;; 2.87, 2.88
 ;;;;;;;;;;;;;
 ;; ”Ä—p‰‰ŽZ ;;
 ;;;;;;;;;;;;;
@@ -3462,7 +3462,7 @@
   (let ((type-tags (map type-tag args)))
     (let ((proc (get op type-tags)))
       (if proc
-          (if (or (eq? #?=op 'project) (eq? op 'raise) (eq? op 'equ?) (eq? op '=zero?))
+          (if (or (eq? op 'project) (eq? op 'raise) (eq? op 'equ?) (eq? op '=zero?))
               (apply proc (map contents args))
               (drop (apply proc (map contents args))))
           (if (= (length args) 2)
@@ -3775,6 +3775,12 @@
                                   (eq-termlist (rest-terms tl1)
                                                (rest-terms tl2))]
                                  [else #f])))
+            (inverse-termlist (lambda (t)
+                                (if (empty-termlist? t)
+                                    t
+                                    (cons (list (order (first-term t))
+                                                (mul (make-integer -1) (coeff (first-term t))))
+                                          (inverse-termlist (rest-terms t))))))
             (add-terms (lambda (L1 L2)
                          (cond [(empty-termlist? L1) L2]
                                [(empty-termlist? L2) L1]
@@ -3813,6 +3819,13 @@
                                                   (term-list p2)))
                             (error "Polys not in same var -- ADD-POLY"
                                    (list p1 p2)))))
+            (sub-poly (lambda (p1 p2)
+                        (if (same-variable? (variable p1) (variable p2))
+                            (make-poly (variable p1)
+                                       (add-terms (term-list p1)
+                                                  (inverse-termlist
+                                                   (term-list p2))))
+                            (error "Polys not in same var -- SUB-POLY"))))
             (mul-poly (lambda (p1 p2)
                         (if (same-variable? (variable p1) (variable p2))
                             (make-poly (variable p1)
@@ -3828,10 +3841,12 @@
                                      (eq-termlist (term-list p1) (term-list p2)))))
            (put 'add '(polynomial polynomial)
                 (lambda (p1 p2) (tag (add-poly p1 p2))))
+           (put 'sub '(polynomial polynomial)
+                (lambda (p1 p2) (tag (sub-poly p1 p2))))
            (put 'mul '(polynomial polynomial)
                 (lambda (p1 p2) (tag (mul-poly p1 p2))))
            (put 'project '(polynomial)
                 (lambda (p) (make-integer (order (first-term (term-list p))))))
-            (put 'make 'polynomial
+           (put 'make 'polynomial
                 (lambda (var terms) (tag (make-poly var terms))))
            'done))
