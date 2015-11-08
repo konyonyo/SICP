@@ -58,3 +58,29 @@
                                  (begin (set! count nextcount)
                                         (lambda (x) "Incorrect password"))))))))
       dispatch)))
+
+;; 3.5
+(use srfi-27)
+
+(define (estimate-integral P x1 x2 y1 y2 trials)
+  (* (- x1 x2) (- y1 y2) (monte-carlo trials P)))
+
+(define (circle-test x1 x2 y1 y2)
+  (lambda ()
+    (<= (+ (square (random-in-range x1 x2))
+           (square (random-in-range y1 y2)))
+        1)))
+
+(define (random-in-range low high)
+  (let ((range (- high low)))
+    (+ low (* range (random-real)))))
+
+(define (monte-carlo trials experiment)
+  (letrec ((iter (lambda (trials-remaining trials-passed)
+                   (cond [(zero? trials-remaining) (/ trials-passed trials)]
+                         [(experiment) (iter (- trials-remaining 1) (+ trials-passed 1))]
+                         [else (iter (- trials-remaining 1) trials-passed)]))))
+    (iter trials 0)))
+
+(define (estimate-pi trials)
+  (estimate-integral (circle-test -1.0 1.0 -1.0 1.0) -1.0 1.0 -1.0 1.0 trials))
