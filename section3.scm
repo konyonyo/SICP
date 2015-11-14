@@ -84,3 +84,54 @@
 
 (define (estimate-pi trials)
   (estimate-integral (circle-test -1.0 1.0 -1.0 1.0) -1.0 1.0 -1.0 1.0 trials))
+
+;; 3.6
+(use srfi-27)
+
+(define (rand x)
+  (cond [(eq? x 'generate) (random-real)]
+        [(eq? x 'reset) (lambda (i j)
+                          (random-source-pseudo-randomize!
+                           default-random-source i j))]
+        [else (error "Incorrect argument -- RAND" x)]))
+
+;; 3.7
+(define (make-account balance password-list)
+  (letrec* ((withdraw (lambda (amount)
+                        (if (>= balance amount)
+                            (begin (set! balance (- balance amount))
+                                   balance)
+                            "Insufficient funds")))
+            (deposit (lambda (amount)
+                       (begin (set! balance (+ balance amount))
+                              balance)))
+            (member? (lambda (x lis)
+                       (cond [(null? lis) #f]
+                             [(eq? x (car lis)) #t]
+                             [else (member? x (cdr lis))])))
+            (add-access (lambda (password)
+                          (begin (set! password-list (cons password password-list))
+                                 password)))
+            (dispatch (lambda (m p)
+                        (if (member? p password-list)
+                            (cond [(eq? m 'withdraw) withdraw]
+                                  [(eq? m 'deposit) deposit]
+                                  [(eq? m 'add-access) add-access]
+                                  [else (error "Unknown request -- MAKE-ACCOUNT"
+                                               m)])
+                            (lambda (x) "Incorrect password")))))
+           dispatch))
+
+(define (make-joint account orgpassword newpassword)
+  (begin ((account 'add-access orgpassword) newpassword)
+         account))
+;; 3.8
+(define f
+  (let ((val 0)
+        (count 0))
+    (lambda (x)
+      (if (zero? count)
+          (begin (set! val x)
+                 (set! count (+ count 1))
+                 val)
+          val))))
